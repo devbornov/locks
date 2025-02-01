@@ -5,11 +5,15 @@ from rest_framework.response import Response
 from rest_framework.decorators import action
 from .models import Service, AdminSettings
 from .serializers import AdminSettingsSerializer
-from .models import User, Locksmith, CarKeyDetails, Service, Transaction, ServiceRequest, ServiceBid
-from .serializers import UserSerializer, LocksmithSerializer, CarKeyDetailsSerializer, ServiceSerializer, TransactionSerializer, ServiceRequestSerializer, ServiceBidSerializer
+from .models import User, Locksmith, CarKeyDetails, Service, Transaction, ServiceRequest, ServiceBid,LocksmithDetails
+from .serializers import UserSerializer, LocksmithSerializer, CarKeyDetailsSerializer, ServiceSerializer, TransactionSerializer, ServiceRequestSerializer, ServiceBidSerializer,LocksmithDetailsSerializer
 from .serializers import UserCreateSerializer
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework import status
+from django.contrib.auth import authenticate
 
 
 class CreateAdminUserView(APIView):
@@ -20,8 +24,122 @@ class CreateAdminUserView(APIView):
         serializer = UserCreateSerializer(data=request.data)
         if serializer.is_valid():
             user = serializer.save(is_staff=True)  # Set user as admin (staff)
-            return Response({"message": "Admin user created successfully", "user": serializer.data})
+            return Response({"message": "user created successfully", "user": serializer.data})
         return Response(serializer.errors, status=400)
+    
+    
+# User Registration API
+class UserRegisterView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = UserCreateSerializer(data=request.data)
+        if serializer.is_valid():
+            user = serializer.save()
+            user.set_password(request.data['password'])  # Hash password
+            user.save()
+
+            refresh = RefreshToken.for_user(user)
+            return Response({
+                'message': 'User registered successfully',
+                'user': serializer.data,
+                'access': str(refresh.access_token),
+                'refresh': str(refresh)
+            }, status=status.HTTP_201_CREATED)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class LocksmithRegisterView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = UserCreateSerializer(data=request.data)
+        if serializer.is_valid():
+            user = serializer.save()
+            user.set_password(request.data['password'])  # Hash password
+            user.save()
+
+            # Create Locksmith Profile
+            locksmith = Locksmith.objects.create(user=user, is_approved=False)
+
+            # Create LocksmithDetails instance
+            locksmith_details = LocksmithDetails.objects.create(
+                locksmith=locksmith,
+                address=request.data['address'],
+                contact_number=request.data['contact_number'],
+                pcc_file=request.data['pcc_file'],
+                license_file=request.data['license_file'],
+                photo=request.data['photo'],
+            )
+
+            refresh = RefreshToken.for_user(user)
+            return Response({
+                'message': 'Locksmith registered successfully, pending approval',
+                'user': serializer.data,
+                'access': str(refresh.access_token),
+                'refresh': str(refresh)
+            }, status=status.HTTP_201_CREATED)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    
+    
+class LocksmithDetailsViewSet(viewsets.ModelViewSet):
+    queryset = LocksmithDetails.objects.all()
+    serializer_class = LocksmithDetailsSerializer
+    permission_classes = [IsAdmin]  # Only Admin can manage locksmith details
+
+    @action(detail=True, methods=['put'], permission_classes=[IsAdmin])
+    def verify_locksmith(self, request, pk=None):
+        locksmith_details = self.get_object()
+        locksmith_details.is_verified = True
+        locksmith_details.save()
+
+        # Optionally, you can approve the locksmith if the details are verified
+        locksmith = locksmith_details.locksmith
+        locksmith.is_approved = True
+        locksmith.save()
+
+        return Response({'status': 'locksmith details verified and approved'})
+
+    @action(detail=True, methods=['put'], permission_classes=[IsAdmin])
+    def reject_locksmith(self, request, pk=None):
+        locksmith_details = self.get_object()
+        locksmith_details.is_verified = False
+        locksmith_details.save()
+
+        # Optionally, you can reject the locksmith if the details are rejected
+        locksmith = locksmith_details.locksmith
+        locksmith.is_approved = False
+        locksmith.save()
+
+        return Response({'status': 'locksmith details rejected'})
+    
+
+
+
+class LoginView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        username = request.data.get('username')
+        password = request.data.get('password')
+
+        user = authenticate(username=username, password=password)
+        if user is not None:
+            refresh = RefreshToken.for_user(user)
+            return Response({
+                'message': 'Login successful',
+                'user_id': user.id,
+                'username': user.username,
+                'role':user.role,
+                'access': str(refresh.access_token),
+                'refresh': str(refresh)
+            }, status=status.HTTP_200_OK)
+        else:
+            return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
+
 
 
 # Custom Permissions
@@ -46,7 +164,7 @@ class UserViewSet(viewsets.ModelViewSet):
 class LocksmithViewSet(viewsets.ModelViewSet):
     queryset = Locksmith.objects.all()
     serializer_class = LocksmithSerializer
-    permission_classes = [IsAdmin]  # Only Admin can manage locksmiths
+    permission_classes = [IsAdmin] # Only Admin can manage locksmiths
 
     @action(detail=True, methods=['put'], permission_classes=[IsAdmin])
     def approve_locksmith(self, request, pk=None):
@@ -61,6 +179,13 @@ class LocksmithViewSet(viewsets.ModelViewSet):
         locksmith.is_approved = False
         locksmith.save()
         return Response({'status': 'locksmith rejected'})
+    
+    
+class AllLocksmiths(viewsets.ReadOnlyModelViewSet):  # Use ReadOnlyModelViewSet if only listing
+    queryset = User.objects.filter(role='locksmith')
+    serializer_class = UserSerializer
+    permission_classes = [IsAdmin]
+    
 
 class CarKeyDetailsViewSet(viewsets.ModelViewSet):
     queryset = CarKeyDetails.objects.all()

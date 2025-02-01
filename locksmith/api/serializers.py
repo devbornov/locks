@@ -1,11 +1,17 @@
 from rest_framework import serializers
-from .models import User, Locksmith, CarKeyDetails, Service, Transaction, ServiceRequest, ServiceBid, AdminSettings, PlatformStatistics
+from .models import User, Locksmith, CarKeyDetails, Service, Transaction, ServiceRequest, ServiceBid, AdminSettings, PlatformStatistics,LocksmithDetails
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['id', 'username', 'email', 'role']
         
+        
+        
+class LocksmithDetailsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = LocksmithDetails
+        fields = ['address', 'contact_number', 'pcc_file', 'license_file', 'photo', 'is_verified']
         
 class UserCreateSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)

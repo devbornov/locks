@@ -9,6 +9,21 @@ class User(AbstractUser):
         ('customer', 'Customer'),
     ]
     role = models.CharField(max_length=50, choices=ROLE_CHOICES)
+    
+    
+class LocksmithDetails(models.Model):
+    locksmith = models.OneToOneField('Locksmith', on_delete=models.CASCADE)  # Link to Locksmith model
+    address = models.TextField()
+    contact_number = models.CharField(max_length=15)
+    pcc_file = models.FileField(upload_to='locksmiths/pcc/')
+    license_file = models.FileField(upload_to='locksmiths/license/')
+    photo = models.ImageField(upload_to='locksmiths/photos/')
+    is_verified = models.BooleanField(default=False)  # Initially not verified
+
+    def __str__(self):
+        return f"Details for {self.locksmith.user.username}"    
+    
+
 
 # Admin Settings Model (For Commission & Platform Settings)  
 class AdminSettings(models.Model):
