@@ -9,9 +9,16 @@ class UserSerializer(serializers.ModelSerializer):
         
         
 class LocksmithDetailsSerializer(serializers.ModelSerializer):
+    name = serializers.SerializerMethodField()
+
     class Meta:
         model = LocksmithDetails
-        fields = ['address', 'contact_number', 'pcc_file', 'license_file', 'photo', 'is_verified']
+        fields = ['name', 'address', 'contact_number', 'pcc_file', 'license_file', 'photo', 'is_verified']
+
+    def get_name(self, obj):
+        if obj.locksmith and obj.locksmith.user:  # Ensure locksmith and user exist
+            return obj.locksmith.user.get_full_name() or obj.locksmith.user.username
+        return None 
         
 class UserCreateSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)

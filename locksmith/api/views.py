@@ -115,7 +115,24 @@ class LocksmithDetailsViewSet(viewsets.ModelViewSet):
         locksmith.save()
 
         return Response({'status': 'locksmith details rejected'})
-    
+
+    @action(detail=True, methods=['get'], permission_classes=[IsAdmin])
+    def verify_locksmith_details(self, request, pk=None):
+        locksmith_details = self.get_object()
+
+        # Collect the locksmith details to be verified
+        locksmith_data = {
+            "name" : locksmith_details.locksmith.user.get_full_name() or locksmith_details.locksmith.user.username(),
+            "address": locksmith_details.address,
+            "contact_number": locksmith_details.contact_number,
+            "pcc_file": locksmith_details.pcc_file.url if locksmith_details.pcc_file else None,
+            "license_file": locksmith_details.license_file.url if locksmith_details.license_file else None,
+            "photo": locksmith_details.photo.url if locksmith_details.photo else None,
+            "is_verified": locksmith_details.is_verified,
+            "is_approved": locksmith_details.locksmith.is_approved
+        }
+
+        return Response(locksmith_data)
 
 
 
