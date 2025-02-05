@@ -10,19 +10,6 @@ class User(AbstractUser):
     ]
     role = models.CharField(max_length=50, choices=ROLE_CHOICES)
     
-    
-class LocksmithDetails(models.Model):
-    locksmith = models.OneToOneField('Locksmith', on_delete=models.CASCADE)  # Link to Locksmith model
-    address = models.TextField()
-    contact_number = models.CharField(max_length=15)
-    pcc_file = models.FileField(upload_to='locksmiths/pcc/')
-    license_file = models.FileField(upload_to='locksmiths/license/')
-    photo = models.ImageField(upload_to='locksmiths/photos/')
-    is_verified = models.BooleanField(default=False)  # Initially not verified
-
-    def __str__(self):
-        return f"Details for {self.locksmith.user.username}"    
-    
 
 
 # Admin Settings Model (For Commission & Platform Settings)  
@@ -40,14 +27,22 @@ class AdminSettings(models.Model):
 # Locksmith Model
 class Locksmith(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
-    service_area = models.CharField(max_length=255)  # Location-based service area
+    service_area = models.CharField(max_length=255, default="")  # Ensure default for service area
     is_approved = models.BooleanField(default=False)  # Admin approves locksmiths
     reputation_score = models.DecimalField(max_digits=5, decimal_places=2, default=0.0)  # Reputation Score
     latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    address = models.TextField(default="")  # Default empty string to prevent null issues
+    contact_number = models.CharField(max_length=15, blank=True, null=True, default="")  # Allow blank/null
+    pcc_file = models.FileField(upload_to='locksmiths/pcc/', blank=True, null=True)  # Allow file to be optional
+    license_file = models.FileField(upload_to='locksmiths/license/', blank=True, null=True)  # Allow blank/null
+    photo = models.ImageField(upload_to='locksmiths/photos/', blank=True, null=True)  # Allow blank/null
+    is_verified = models.BooleanField(default=False)  # Initially not verified
 
     def __str__(self):
         return f"{self.user.username} - {self.service_area}"
+
+
 
 # Car Key Details Model
 class CarKeyDetails(models.Model):

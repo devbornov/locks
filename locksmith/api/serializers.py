@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User, Locksmith, CarKeyDetails, Service, Transaction, ServiceRequest, ServiceBid, AdminSettings, PlatformStatistics,LocksmithDetails
+from .models import User, Locksmith, CarKeyDetails, Service, Transaction, ServiceRequest, ServiceBid, AdminSettings, PlatformStatistics
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -7,18 +7,6 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ['id', 'username', 'email', 'role']
         
         
-        
-class LocksmithDetailsSerializer(serializers.ModelSerializer):
-    name = serializers.SerializerMethodField()
-
-    class Meta:
-        model = LocksmithDetails
-        fields = ['name', 'address', 'contact_number', 'pcc_file', 'license_file', 'photo', 'is_verified']
-
-    def get_name(self, obj):
-        if obj.locksmith and obj.locksmith.user:  # Ensure locksmith and user exist
-            return obj.locksmith.user.get_full_name() or obj.locksmith.user.username
-        return None 
         
 class UserCreateSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
@@ -39,18 +27,20 @@ class UserCreateSerializer(serializers.ModelSerializer):
         return user
 
 class LocksmithSerializer(serializers.ModelSerializer):
-    user = UserSerializer(read_only=True)
+    user = UserSerializer(read_only=True)  # Read-only user data
     services_offered = serializers.PrimaryKeyRelatedField(queryset=Service.objects.all(), many=True)
-    service_area = serializers.CharField(max_length=255)
-    is_approved = serializers.BooleanField(default=False)
 
     class Meta:
         model = Locksmith
-        fields = ['id', 'user', 'services_offered', 'service_area', 'is_approved']
+        fields = [
+            'id', 'user', 'services_offered', 'service_area', 'is_approved', 
+            'address', 'contact_number', 'pcc_file', 'license_file', 'photo', 'is_verified'
+        ]
 
     def validate_service_area(self, value):
         # Validate the service area format if necessary
         return value
+
 
 class CarKeyDetailsSerializer(serializers.ModelSerializer):
     class Meta:

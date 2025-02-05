@@ -5,8 +5,8 @@ from rest_framework.response import Response
 from rest_framework.decorators import action
 from .models import Service, AdminSettings
 from .serializers import AdminSettingsSerializer
-from .models import User, Locksmith, CarKeyDetails, Service, Transaction, ServiceRequest, ServiceBid,LocksmithDetails
-from .serializers import UserSerializer, LocksmithSerializer, CarKeyDetailsSerializer, ServiceSerializer, TransactionSerializer, ServiceRequestSerializer, ServiceBidSerializer,LocksmithDetailsSerializer
+from .models import User, Locksmith, CarKeyDetails, Service, Transaction, ServiceRequest, ServiceBid
+from .serializers import UserSerializer, LocksmithSerializer, CarKeyDetailsSerializer, ServiceSerializer, TransactionSerializer, ServiceRequestSerializer, ServiceBidSerializer
 from .serializers import UserCreateSerializer
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
@@ -61,56 +61,48 @@ class LocksmithRegisterView(APIView):
             user.save()
 
             # Create Locksmith Profile
-            locksmith = Locksmith.objects.create(user=user, is_approved=False)
-
-            # Create LocksmithDetails instance
-            locksmith_details = LocksmithDetails.objects.create(
-                locksmith=locksmith,
-                address=request.data['address'],
-                contact_number=request.data['contact_number'],
-                pcc_file=request.data['pcc_file'],
-                license_file=request.data['license_file'],
-                photo=request.data['photo'],
+            locksmith = Locksmith.objects.create(
+                user=user,
+                is_approved=False,
+                address=request.data.get('address', ''),  
+                contact_number=request.data.get('contact_number', ''),  
+                pcc_file=request.data.get('pcc_file', None),  
+                license_file=request.data.get('license_file', None),  
+                photo=request.data.get('photo', None),  
             )
 
             refresh = RefreshToken.for_user(user)
             return Response({
                 'message': 'Locksmith registered successfully, pending approval',
                 'user': serializer.data,
+                # 'role':serializer.data,
                 'access': str(refresh.access_token),
                 'refresh': str(refresh)
             }, status=status.HTTP_201_CREATED)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
     
     
     
-class LocksmithDetailsViewSet(viewsets.ModelViewSet):
-    queryset = LocksmithDetails.objects.all()
-    serializer_class = LocksmithDetailsSerializer
-    permission_classes = [IsAdmin]  # Only Admin can manage locksmith details
+class LocksmithViewSet(viewsets.ModelViewSet):
+    queryset = Locksmith.objects.all()
+    serializer_class = LocksmithSerializer
+    permission_classes = [IsAdmin]  # Only Admin can manage locksmiths
 
     @action(detail=True, methods=['put'], permission_classes=[IsAdmin])
     def verify_locksmith(self, request, pk=None):
-        locksmith_details = self.get_object()
-        locksmith_details.is_verified = True
-        locksmith_details.save()
-
-        # Optionally, you can approve the locksmith if the details are verified
-        locksmith = locksmith_details.locksmith
-        locksmith.is_approved = True
+        locksmith = self.get_object()
+        locksmith.is_verified = True
+        locksmith.is_approved = True  # Approve upon verification
         locksmith.save()
 
         return Response({'status': 'locksmith details verified and approved'})
 
     @action(detail=True, methods=['put'], permission_classes=[IsAdmin])
     def reject_locksmith(self, request, pk=None):
-        locksmith_details = self.get_object()
-        locksmith_details.is_verified = False
-        locksmith_details.save()
-
-        # Optionally, you can reject the locksmith if the details are rejected
-        locksmith = locksmith_details.locksmith
+        locksmith = self.get_object()
+        locksmith.is_verified = False
         locksmith.is_approved = False
         locksmith.save()
 
@@ -118,18 +110,29 @@ class LocksmithDetailsViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['get'], permission_classes=[IsAdmin])
     def verify_locksmith_details(self, request, pk=None):
-        locksmith_details = self.get_object()
+        locksmith = self.get_object()
 
-        # Collect the locksmith details to be verified
         locksmith_data = {
-            "name" : locksmith_details.locksmith.user.get_full_name() or locksmith_details.locksmith.user.username(),
-            "address": locksmith_details.address,
-            "contact_number": locksmith_details.contact_number,
-            "pcc_file": locksmith_details.pcc_file.url if locksmith_details.pcc_file else None,
-            "license_file": locksmith_details.license_file.url if locksmith_details.license_file else None,
-            "photo": locksmith_details.photo.url if locksmith_details.photo else None,
-            "is_verified": locksmith_details.is_verified,
-            "is_approved": locksmith_details.locksmith.is_approved
+            "id": locksmith.id,
+            "user": {
+                "id": locksmith.user.id,
+                "username": locksmith.user.username,
+                "full_name": locksmith.user.get_full_name(),
+                "email": locksmith.user.email
+            },
+            "service_area": locksmith.service_area,
+            "address": locksmith.address,
+            "contact_number": locksmith.contact_number,
+            "latitude": locksmith.latitude,
+            "longitude": locksmith.longitude,
+            "reputation_score": str(locksmith.reputation_score),  # Convert Decimal to string for JSON
+            "pcc_file": locksmith.pcc_file.url if locksmith.pcc_file else None,
+            "license_file": locksmith.license_file.url if locksmith.license_file else None,
+            "photo": locksmith.photo.url if locksmith.photo else None,
+            "is_verified": locksmith.is_verified,
+            "is_approved": locksmith.is_approved,
+            "created_at": locksmith.created_at.strftime('%Y-%m-%d %H:%M:%S') if hasattr(locksmith, 'created_at') else None,
+            "updated_at": locksmith.updated_at.strftime('%Y-%m-%d %H:%M:%S') if hasattr(locksmith, 'updated_at') else None
         }
 
         return Response(locksmith_data)
@@ -177,26 +180,13 @@ class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
     permission_classes = [IsAdmin]  # Only Admin can manage users
-
-class LocksmithViewSet(viewsets.ModelViewSet):
-    queryset = Locksmith.objects.all()
-    serializer_class = LocksmithSerializer
-    permission_classes = [IsAdmin] # Only Admin can manage locksmiths
-
-    @action(detail=True, methods=['put'], permission_classes=[IsAdmin])
-    def approve_locksmith(self, request, pk=None):
-        locksmith = self.get_object()
-        locksmith.is_approved = True
-        locksmith.save()
-        return Response({'status': 'locksmith approved'})
-
-    @action(detail=True, methods=['put'], permission_classes=[IsAdmin])
-    def reject_locksmith(self, request, pk=None):
-        locksmith = self.get_object()
-        locksmith.is_approved = False
-        locksmith.save()
-        return Response({'status': 'locksmith rejected'})
     
+    
+    
+class CustomersViewSet(viewsets.ModelViewSet):
+    queryset = User.objects.filter(role='customer')
+    serializer_class = UserSerializer
+    permission_classes = [IsAdmin] 
     
 class AllLocksmiths(viewsets.ReadOnlyModelViewSet):  # Use ReadOnlyModelViewSet if only listing
     queryset = User.objects.filter(role='locksmith')
