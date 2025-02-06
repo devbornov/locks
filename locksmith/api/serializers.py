@@ -46,7 +46,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
 
         # Generate TOTP URI
         totp_uri = pyotp.totp.TOTP(user.totp_secret).provisioning_uri(
-            name=user.email, issuer_name="YourAppName"
+            name=user.email, issuer_name="locksmith"
         )
 
         # Generate QR Code
