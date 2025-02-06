@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
+import pyotp
 
 # User Model with Role-Based Access
 class User(AbstractUser):
@@ -8,9 +9,24 @@ class User(AbstractUser):
         ('locksmith', 'Locksmith'),
         ('customer', 'Customer'),
     ]
-    role = models.CharField(max_length=50, choices=ROLE_CHOICES)
-    
+    role = models.CharField(max_length=50, choices=ROLE_CHOICES, default='customer')
+    totp_secret = models.CharField(max_length=32, blank=True, null=True)  # Optional TOTP Secret
 
+    def enable_totp(self):
+        """Generate a TOTP secret key for the user if they enable TOTP."""
+        if not self.totp_secret:
+            self.totp_secret = pyotp.random_base32()
+            self.save()
+
+    def verify_totp(self, otp_code):
+        """Verify the OTP code entered by the user."""
+        if not self.totp_secret:
+            return False  # TOTP not enabled
+        totp = pyotp.TOTP(self.totp_secret)
+        return totp.verify(otp_code)  # Returns True if OTP is correct
+
+    def __str__(self):
+        return f"{self.username} - {self.role}"
 
 # Admin Settings Model (For Commission & Platform Settings)  
 class AdminSettings(models.Model):

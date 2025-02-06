@@ -14,6 +14,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework import status
 from django.contrib.auth import authenticate
+import pyotp
 
 
 class CreateAdminUserView(APIView):
@@ -36,19 +37,27 @@ class UserRegisterView(APIView):
         serializer = UserCreateSerializer(data=request.data)
         if serializer.is_valid():
             user = serializer.save()
-            user.set_password(request.data['password'])  # Hash password
-            user.save()
-
             refresh = RefreshToken.for_user(user)
+
+            totp_details = serializer.get_totp_details(user)  # Pass user instance
+
             return Response({
                 'message': 'User registered successfully',
-                'user': serializer.data,
+                'user': {
+                    'id': user.id,
+                    'username': user.username,
+                    'email': user.email,
+                    'role': user.role,
+                    'totp_enabled': user.totp_enabled,
+                    'totp_secret': totp_details["totp_secret"],  # TOTP Key in Response
+                    'totp_qr_code': totp_details["totp_qr_code"],  # Base64 QR Code
+                    'totp_qr_code_url': totp_details["qr_code_url"],  # QR Image URL
+                },
                 'access': str(refresh.access_token),
                 'refresh': str(refresh)
             }, status=status.HTTP_201_CREATED)
-        
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class LocksmithRegisterView(APIView):
     permission_classes = [AllowAny]
@@ -145,21 +154,26 @@ class LoginView(APIView):
     def post(self, request):
         username = request.data.get('username')
         password = request.data.get('password')
+        otp_code = request.data.get('otp_code', None)  # OTP input from user
 
         user = authenticate(username=username, password=password)
         if user is not None:
+            # If TOTP is enabled, verify the OTP before allowing login
+            if user.totp_secret:
+                if not otp_code or not user.verify_totp(otp_code):
+                    return Response({'error': 'Invalid OTP'}, status=status.HTTP_401_UNAUTHORIZED)
+
             refresh = RefreshToken.for_user(user)
             return Response({
                 'message': 'Login successful',
                 'user_id': user.id,
                 'username': user.username,
-                'role':user.role,
+                'role': user.role,
                 'access': str(refresh.access_token),
                 'refresh': str(refresh)
             }, status=status.HTTP_200_OK)
         else:
             return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
-
 
 
 # Custom Permissions
