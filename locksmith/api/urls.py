@@ -9,7 +9,7 @@ from .views import (
 
 # Initialize Default Router
 router = DefaultRouter()
-router.register(r'users', UserViewSet)
+router.register(r'users', UserViewSet),
 router.register(r'locksmiths', LocksmithViewSet)
 router.register(r'alllocksmiths', AllLocksmiths,basename='alllocksmiths'),
 router.register(r'allcustomers', CustomersViewSet,basename='allcustomers'),

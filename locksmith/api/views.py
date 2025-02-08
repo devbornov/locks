@@ -15,6 +15,9 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework import status
 from django.contrib.auth import authenticate
 import pyotp
+from rest_framework.parsers import MultiPartParser, FormParser
+
+
 
 
 class CreateAdminUserView(APIView):
@@ -59,6 +62,37 @@ class UserRegisterView(APIView):
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+# class LocksmithRegisterView(APIView):
+#     permission_classes = [AllowAny]
+
+#     def post(self, request):
+#         serializer = UserCreateSerializer(data=request.data)
+#         if serializer.is_valid():
+#             user = serializer.save()
+#             user.set_password(request.data['password'])  # Hash password
+#             user.save()
+
+#             # Create Locksmith Profile
+#             locksmith = Locksmith.objects.create(
+#                 user=user,
+#                 is_approved=False,
+#                 address=request.data.get('address', ''),  
+#                 contact_number=request.data.get('contact_number', ''),  
+#                 pcc_file=request.data.get('pcc_file', None),  
+#                 license_file=request.data.get('license_file', None),  
+#                 photo=request.data.get('photo', None),  
+#             )
+
+#             refresh = RefreshToken.for_user(user)
+#             return Response({
+#                 'message': 'Locksmith registered successfully, pending approval',
+#                 'user': serializer.data,
+#                 # 'role':serializer.data,
+#                 'access': str(refresh.access_token),
+#                 'refresh': str(refresh)
+#             }, status=status.HTTP_201_CREATED)
+
+#         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 class LocksmithRegisterView(APIView):
     permission_classes = [AllowAny]
 
@@ -67,30 +101,74 @@ class LocksmithRegisterView(APIView):
         if serializer.is_valid():
             user = serializer.save()
             user.set_password(request.data['password'])  # Hash password
+            user.role = 'locksmith'  # Set the role explicitly
             user.save()
 
-            # Create Locksmith Profile
-            locksmith = Locksmith.objects.create(
-                user=user,
-                is_approved=False,
-                address=request.data.get('address', ''),  
-                contact_number=request.data.get('contact_number', ''),  
-                pcc_file=request.data.get('pcc_file', None),  
-                license_file=request.data.get('license_file', None),  
-                photo=request.data.get('photo', None),  
-            )
-
+            # Generate authentication tokens
             refresh = RefreshToken.for_user(user)
             return Response({
-                'message': 'Locksmith registered successfully, pending approval',
+                'message': 'User registered successfully. Please complete your locksmith profile.',
                 'user': serializer.data,
-                # 'role':serializer.data,
                 'access': str(refresh.access_token),
                 'refresh': str(refresh)
             }, status=status.HTTP_201_CREATED)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+class IsLocksmith(permissions.BasePermission):
+    """
+    Custom permission to allow only locksmiths to access the view.
+    """
 
+    def has_permission(self, request, view):
+        # Ensure the user is authenticated and has the locksmith role
+        return request.user and request.user.is_authenticated and request.user.role == "locksmith"
+    
+    
+    
+class LocksmithProfileView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        """
+        Create a new locksmith profile for the logged-in user.
+        """
+        user = request.user
+
+        # Ensure the user is a locksmith
+        if user.role != 'locksmith':
+            return Response({"error": "Unauthorized. Only locksmiths can create profiles."}, status=status.HTTP_403_FORBIDDEN)
+
+        # Check if the locksmith profile already exists
+        if hasattr(user, 'locksmith'):
+            return Response({"error": "Profile already exists."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Create a new locksmith profile
+        serializer = LocksmithSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(user=user)
+            return Response({"message": "Profile created successfully", "data": serializer.data}, status=status.HTTP_201_CREATED)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def put(self, request):
+        """
+        Update an existing locksmith profile.
+        """
+        user = request.user
+
+        # Ensure the locksmith profile exists
+        try:
+            locksmith = user.locksmith
+        except Locksmith.DoesNotExist:
+            return Response({"error": "Locksmith profile not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = LocksmithSerializer(locksmith, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"message": "Profile updated successfully", "data": serializer.data}, status=status.HTTP_200_OK)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     
     
@@ -105,8 +183,33 @@ class LocksmithViewSet(viewsets.ModelViewSet):
         locksmith.is_verified = True
         locksmith.is_approved = True  # Approve upon verification
         locksmith.save()
+        locksmith_data = {
+            "id": locksmith.id,
+            "user": {
+                "id": locksmith.user.id,
+                "username": locksmith.user.username,
+                "full_name": locksmith.user.get_full_name(),
+                "email": locksmith.user.email
+            },
+            "service_area": locksmith.service_area,
+            "address": locksmith.address,
+            "contact_number": locksmith.contact_number,
+            "latitude": locksmith.latitude,
+            "longitude": locksmith.longitude,
+            "reputation_score": str(locksmith.reputation_score),  # Convert Decimal to string for JSON
+            "pcc_file": locksmith.pcc_file.url if locksmith.pcc_file else None,
+            "license_file": locksmith.license_file.url if locksmith.license_file else None,
+            "photo": locksmith.photo.url if locksmith.photo else None,
+            "is_verified": locksmith.is_verified,
+            "is_approved": locksmith.is_approved,
+            "created_at": locksmith.created_at.strftime('%Y-%m-%d %H:%M:%S') if hasattr(locksmith, 'created_at') else None,
+            "updated_at": locksmith.updated_at.strftime('%Y-%m-%d %H:%M:%S') if hasattr(locksmith, 'updated_at') else None
+        }
 
-        return Response({'status': 'locksmith details verified and approved'})
+        return Response({
+            'status': 'Locksmith details verified and approved',
+            'locksmith_data': locksmith_data
+        })
 
     @action(detail=True, methods=['put'], permission_classes=[IsAdmin])
     def reject_locksmith(self, request, pk=None):
@@ -114,8 +217,34 @@ class LocksmithViewSet(viewsets.ModelViewSet):
         locksmith.is_verified = False
         locksmith.is_approved = False
         locksmith.save()
+        locksmith_data = {
+            "id": locksmith.id,
+            "user": {
+                "id": locksmith.user.id,
+                "username": locksmith.user.username,
+                "full_name": locksmith.user.get_full_name(),
+                "email": locksmith.user.email
+            },
+            "service_area": locksmith.service_area,
+            "address": locksmith.address,
+            "contact_number": locksmith.contact_number,
+            "latitude": locksmith.latitude,
+            "longitude": locksmith.longitude,
+            "reputation_score": str(locksmith.reputation_score),  # Convert Decimal to string for JSON
+            "pcc_file": locksmith.pcc_file.url if locksmith.pcc_file else None,
+            "license_file": locksmith.license_file.url if locksmith.license_file else None,
+            "photo": locksmith.photo.url if locksmith.photo else None,
+            "is_verified": locksmith.is_verified,
+            "is_approved": locksmith.is_approved,
+            "created_at": locksmith.created_at.strftime('%Y-%m-%d %H:%M:%S') if hasattr(locksmith, 'created_at') else None,
+            "updated_at": locksmith.updated_at.strftime('%Y-%m-%d %H:%M:%S') if hasattr(locksmith, 'updated_at') else None
+        }
 
-        return Response({'status': 'locksmith details rejected'})
+        return Response({
+            'status': 'locksmith details rejected',
+            'locksmith_data': locksmith_data
+        })
+
 
     @action(detail=True, methods=['get'], permission_classes=[IsAdmin])
     def verify_locksmith_details(self, request, pk=None):
@@ -160,20 +289,63 @@ class LoginView(APIView):
         if user is not None:
             # If TOTP is enabled, verify the OTP before allowing login
             if user.totp_secret:
-                if not otp_code or not user.verify_totp(otp_code):
+                if not otp_code or not user.verify_totp(otp_code, valid_window=1):
                     return Response({'error': 'Invalid OTP'}, status=status.HTTP_401_UNAUTHORIZED)
 
+            # Check if the user is a locksmith
+            locksmith = None
+            try:
+                locksmith = Locksmith.objects.get(user=user)
+                
+                refresh = RefreshToken.for_user(user)
+                # If the locksmith exists, check verification and approval status
+                if not locksmith.is_verified:
+                    return Response({
+                        'message': 'Login successful',
+                        'error': 'Your account is pending verification',
+                        'user_id': user.id,
+                        'username': user.username,
+                        'role': user.role,
+                        'is_locksmith': True,
+                        'is_verified': False,
+                        'is_approved': locksmith.is_approved,
+                        'access': str(refresh.access_token),
+                        'refresh': str(refresh)
+                    }, status=status.HTTP_200_OK)
+
+                if not locksmith.is_approved:
+                    return Response({
+                        'message': 'Login successful',
+                        'error': 'Your account has been rejected',
+                        'user_id': user.id,
+                        'username': user.username,
+                        'role': user.role,
+                        'is_locksmith': True,
+                        'is_verified': locksmith.is_verified,
+                        'is_approved': False,
+                        'access': str(refresh.access_token),
+                        'refresh': str(refresh)
+                    }, status=status.HTTP_200_OK)
+
+            except Locksmith.DoesNotExist:
+                pass  # User is not a locksmith
+
+            # Generate authentication tokens
             refresh = RefreshToken.for_user(user)
+
             return Response({
                 'message': 'Login successful',
                 'user_id': user.id,
                 'username': user.username,
                 'role': user.role,
+                'is_locksmith': True if locksmith else False,
+                'is_verified': locksmith.is_verified if locksmith else None,
+                'is_approved': locksmith.is_approved if locksmith else None,
                 'access': str(refresh.access_token),
                 'refresh': str(refresh)
             }, status=status.HTTP_200_OK)
-        else:
-            return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
 
 
 # Custom Permissions

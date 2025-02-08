@@ -19,7 +19,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.urls import path , include
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
-from api.views import CreateAdminUserView, UserRegisterView, LocksmithRegisterView, LoginView
+from api.views import CreateAdminUserView, UserRegisterView, LocksmithRegisterView, LoginView,LocksmithProfileView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -29,6 +29,7 @@ urlpatterns = [
     path('create-admin/', CreateAdminUserView.as_view(), name='create-admin'),# Refresh JWT token
     path('register/user/', UserRegisterView.as_view(), name='register-user'),
     path('register/locksmith/', LocksmithRegisterView.as_view(), name='register-locksmith'),
+    path('locksmith/profile/update/', LocksmithProfileView.as_view(), name='locksmith-profile-update'),
     path('login/', LoginView.as_view(), name='login'),
     path('token/refresh/', TokenRefreshView.as_view(), name='token-refresh'),
 ]

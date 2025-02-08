@@ -83,7 +83,7 @@ class LocksmithSerializer(serializers.ModelSerializer):
     class Meta:
         model = Locksmith
         fields = [
-            'id', 'user', 'services_offered', 'service_area', 'is_approved', 
+            'id', 'user', 'service_area', 'is_approved',
             'address', 'contact_number', 'pcc_file', 'license_file', 'photo', 'is_verified'
         ]
 

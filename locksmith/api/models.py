@@ -18,12 +18,12 @@ class User(AbstractUser):
             self.totp_secret = pyotp.random_base32()
             self.save()
 
-    def verify_totp(self, otp_code):
+    def verify_totp(self, otp_code, valid_window=1):
         """Verify the OTP code entered by the user."""
         if not self.totp_secret:
             return False  # TOTP not enabled
         totp = pyotp.TOTP(self.totp_secret)
-        return totp.verify(otp_code)  # Returns True if OTP is correct
+        return totp.verify(otp_code, valid_window=valid_window)  # Accepts ±1 time step
 
     def __str__(self):
         return f"{self.username} - {self.role}"
