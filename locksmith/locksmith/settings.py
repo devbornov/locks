@@ -118,7 +118,7 @@ WSGI_APPLICATION = 'locksmith.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'locksmith',
+        'NAME': 'locksmith1',
         'USER': 'root',
         'PASSWORD': 'root',
         'HOST': 'localhost',  # This matches the name of the db service in docker-compose.yml
