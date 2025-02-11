@@ -610,12 +610,17 @@ class LocksmithServiceViewSet(viewsets.ModelViewSet):
         except (TypeError, ValueError):
             return Response({"error": "Invalid price format."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Fetch admin commission amount
+        # Fetch admin commission amount and ensure it's a float
         admin_settings = AdminSettings.objects.first()
-        commission_amount = admin_settings.commission_amount if admin_settings else 0.00  # Use default commission if not set
+        commission_amount = admin_settings.commission_amount if admin_settings else 0.00
+        commission_amount = float(commission_amount)  # Make sure it's a float for calculation
+
+        # DEBUG: Print commission value and base price for clarity
+        print(f"Base Price: {base_price}, Commission Amount: {commission_amount}")
 
         # Calculate the total price: base price + commission
-        total_price = base_price + float(commission_amount)  # Ensure commission is treated as a float
+        total_price = base_price + commission_amount  # Ensure commission is added only once
+        print(f"Total Price (Base Price + Commission): {total_price}")
 
         # Check if the locksmith already has a service entry for this service type
         service = LocksmithService.objects.filter(locksmith=locksmith, service_type=service_type).first()
