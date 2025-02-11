@@ -4,21 +4,25 @@ from .views import (
     UserViewSet, LocksmithViewSet, CarKeyDetailsViewSet, 
     ServiceViewSet, TransactionViewSet, 
     ServiceRequestViewSet, ServiceBidViewSet, 
-    AdminSettingsViewSet,AllLocksmiths,CustomersViewSet
+    AdminSettingsViewSet,AllLocksmiths,CustomersViewSet,AdmincomissionViewSet,LocksmithServiceViewSet
 )
 
 # Initialize Default Router
 router = DefaultRouter()
 router.register(r'users', UserViewSet),
 router.register(r'locksmiths', LocksmithViewSet)
-router.register(r'alllocksmiths', AllLocksmiths,basename='alllocksmiths'),
-router.register(r'allcustomers', CustomersViewSet,basename='allcustomers'),
+router.register(r'alllocksmiths', AllLocksmiths,basename='alllocksmiths')
+router.register(r'allcustomers', CustomersViewSet,basename='allcustomers')
 router.register(r'carkeydetails', CarKeyDetailsViewSet)
-router.register(r'services', ServiceViewSet)
+router.register(r'services', ServiceViewSet,basename='services')
+router.register(r'Locksmithservices', LocksmithServiceViewSet)
 router.register(r'transactions', TransactionViewSet)
 router.register(r'servicerequests', ServiceRequestViewSet)  # Add ServiceRequest viewset
 router.register(r'servicebids', ServiceBidViewSet)  # Add ServiceBid viewset
-router.register(r'adminsettings', AdminSettingsViewSet)  # Add AdminSettings viewset
+router.register(r'adminsettings', AdminSettingsViewSet)
+router.register(r'admincomission', AdmincomissionViewSet, basename='admincomission')
+# router.register(r'locksmithservices', LocksmithServiceUpdateViewSet, basename='locksmithservices')
+# Add AdminSettings viewset
 
 # URL patterns
 urlpatterns = [

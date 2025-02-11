@@ -5,8 +5,8 @@ from rest_framework.response import Response
 from rest_framework.decorators import action
 from .models import Service, AdminSettings
 from .serializers import AdminSettingsSerializer
-from .models import User, Locksmith, CarKeyDetails, Service, Transaction, ServiceRequest, ServiceBid
-from .serializers import UserSerializer, LocksmithSerializer, CarKeyDetailsSerializer, ServiceSerializer, TransactionSerializer, ServiceRequestSerializer, ServiceBidSerializer
+from .models import User, Locksmith, CarKeyDetails, Service, Transaction, ServiceRequest, ServiceBid,LocksmithService
+from .serializers import UserSerializer, LocksmithSerializer, CarKeyDetailsSerializer, ServiceSerializer, TransactionSerializer, ServiceRequestSerializer, ServiceBidSerializer,LocksmithServiceSerializer
 from .serializers import UserCreateSerializer
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
@@ -360,6 +360,11 @@ class IsLocksmith(permissions.BasePermission):
 class IsCustomer(permissions.BasePermission):
     def has_permission(self, request, view):
         return request.user.role == 'customer'  # Adjust role check for customers
+    
+    
+class IsAdminOrCustomer(permissions.BasePermission):
+    def has_permission(self, request, view):
+        return request.user.role in ['admin', 'customer']
 
 # Admin Views
 class UserViewSet(viewsets.ModelViewSet):
@@ -386,9 +391,9 @@ class CarKeyDetailsViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAdmin]  # Only Admin can manage car key details
 
 class ServiceViewSet(viewsets.ModelViewSet):
-    queryset = Service.objects.all()
-    serializer_class = ServiceSerializer
-    permission_classes = [IsAdmin]  # Only Admin can manage services
+    queryset = LocksmithService.objects.all()
+    serializer_class = LocksmithServiceSerializer
+    permission_classes=[IsAdminOrCustomer]
 
     @action(detail=False, methods=['get'], permission_classes=[IsAdmin])
     def platform_settings(self, request):
@@ -445,6 +450,96 @@ class ServiceRequestViewSet(viewsets.ModelViewSet):
 class AdminSettingsViewSet(viewsets.ModelViewSet):
     queryset = AdminSettings.objects.all()
     serializer_class = AdminSettingsSerializer    
+    
+    
+    
+
+
+class AdmincomissionViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for updating or creating the admin percentage settings.
+    Only accessible by Admins.
+    """
+    queryset = AdminSettings.objects.all()
+    serializer_class = AdminSettingsSerializer
+    permission_classes = [IsAuthenticated, IsAdmin]
+
+    def update(self, request, *args, **kwargs):
+        """
+        Update the existing admin percentage or create a new one if none exists.
+        Ensures a single row is maintained in the database.
+        """
+        admin_settings = AdminSettings.objects.first()  # Fetch the first record if exists
+
+        if not admin_settings:
+            # Create only if no record exists
+            admin_settings = AdminSettings.objects.create(admin_percentage=request.data.get("admin_percentage", 0))
+            message = "Admin percentage created successfully."
+        else:
+            # Update existing record
+            admin_percentage = request.data.get("admin_percentage")
+            if admin_percentage is not None:
+                admin_settings.admin_percentage = admin_percentage
+                admin_settings.save()
+                message = "Admin percentage updated successfully."
+            else:
+                return Response({"error": "Admin percentage is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response({
+            "message": message,
+            "admin_percentage": admin_settings.admin_percentage
+        }, status=status.HTTP_200_OK)
+
+
+
+
+# class LocksmithServiceUpdateViewSet(viewsets.ModelViewSet):
+#     """
+#     ViewSet for updating locksmith services and pricing with admin commission.
+#     Only accessible by Locksmiths.
+#     """
+#     queryset = LocksmithService.objects.all()
+#     serializer_class = LocksmithServiceSerializer
+#     permission_classes = [IsAuthenticated, IsLocksmith]
+
+#     def update(self, request, *args, **kwargs):
+#         """
+#         Update locksmith service price with admin commission (Fixed Amount Model).
+#         """
+#         user = request.user
+#         try:
+#             locksmith = user.locksmith  # Ensure locksmith profile exists
+#         except Locksmith.DoesNotExist:
+#             return Response({"error": "Locksmith profile not found."}, status=status.HTTP_404_NOT_FOUND)
+
+#         # Get the admin fixed commission amount
+#         admin_settings = AdminSettings.objects.first()
+#         if not admin_settings:
+#             return Response({"error": "Admin settings not found."}, status=status.HTTP_404_NOT_FOUND)
+
+#         commission_amount = admin_settings.commission_amount  # Fixed amount
+
+#         services = request.data.get("services", [])
+
+#         for service_data in services:
+#             service_id = service_data.get("id")
+#             base_price = service_data.get("price")
+
+#             try:
+#                 service = Service.objects.get(id=service_id, locksmith=locksmith)
+#                 final_price = base_price + commission_amount  # Fixed amount addition
+
+#                 service.price = final_price
+#                 service.save()
+
+#             except Service.DoesNotExist:
+#                 return Response({"error": f"Service ID {service_id} not found."}, status=status.HTTP_404_NOT_FOUND)
+
+#         return Response({
+#             "message": "Services updated successfully with fixed admin commission.",
+#             "commission_amount": commission_amount
+#         }, status=status.HTTP_200_OK)
+
 
 
 class ServiceBidViewSet(viewsets.ModelViewSet):
@@ -479,3 +574,80 @@ class CustomerDashboardViewSet(viewsets.GenericViewSet):
         # Logic for creating service requests
         return Response({'status': 'service request placed'})
 
+
+
+
+
+
+class LocksmithServiceViewSet(viewsets.ModelViewSet):
+    queryset = LocksmithService.objects.all()
+    serializer_class = LocksmithServiceSerializer
+    permission_classes = [IsAuthenticated]
+
+    def create(self, request, *args, **kwargs):
+        """
+        Create a new locksmith service with admin commission included.
+        """
+        # Get the authenticated locksmith
+        user = request.user
+        try:
+            locksmith = Locksmith.objects.get(user=user)
+        except Locksmith.DoesNotExist:
+            return Response({"error": "Locksmith profile not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        # Ensure the locksmith is approved before allowing service creation
+        if not locksmith.is_approved:
+            return Response({"error": "Locksmith is not approved."}, status=status.HTTP_403_FORBIDDEN)
+
+        # Extract the necessary data from the request
+        service_type = request.data.get("service_type")
+        base_price = request.data.get("price")
+        details = request.data.get("details", "")
+
+        # Validate price input
+        try:
+            base_price = float(base_price)
+        except (TypeError, ValueError):
+            return Response({"error": "Invalid price format."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Fetch admin commission amount
+        admin_settings = AdminSettings.objects.first()
+        commission_amount = admin_settings.commission_amount if admin_settings else 0.00  # Use default commission if not set
+
+        # Calculate the total price: base price + commission
+        total_price = base_price + float(commission_amount)  # Ensure commission is treated as a float
+
+        # Check if the locksmith already has a service entry for this service type
+        service = LocksmithService.objects.filter(locksmith=locksmith, service_type=service_type).first()
+
+        if service:
+            # If service exists, update it
+            service.price = total_price  # Only update the price field (don't add commission again)
+            service.details = details
+            service.save()
+            return Response({
+                "message": "Service updated successfully with admin commission.",
+                "service_id": service.id,
+                "locksmith": locksmith.user.username,
+                "service_type": service.service_type,
+                "base_price": base_price,
+                "admin_commission": commission_amount,
+                "total_price": total_price
+            }, status=status.HTTP_200_OK)
+        else:
+            # If no existing service, create a new one
+            service = LocksmithService.objects.create(
+                locksmith=locksmith,
+                service_type=service_type,
+                price=total_price,  # Store total price (base price + commission)
+                details=details
+            )
+            return Response({
+                "message": "Service created successfully with admin commission.",
+                "service_id": service.id,
+                "locksmith": locksmith.user.username,
+                "service_type": service.service_type,
+                "base_price": base_price,
+                "admin_commission": commission_amount,
+                "total_price": total_price
+            }, status=status.HTTP_201_CREATED)

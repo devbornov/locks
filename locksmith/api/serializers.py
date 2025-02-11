@@ -5,7 +5,7 @@ import os
 from io import BytesIO
 from django.conf import settings
 from rest_framework import serializers
-from .models import User, Locksmith, CarKeyDetails, Service, Transaction, ServiceRequest, ServiceBid, AdminSettings, PlatformStatistics
+from .models import User, Locksmith, CarKeyDetails, Service, Transaction, ServiceRequest, ServiceBid, AdminSettings, PlatformStatistics,LocksmithService
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -78,7 +78,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
 
 class LocksmithSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)  # Read-only user data
-    services_offered = serializers.PrimaryKeyRelatedField(queryset=Service.objects.all(), many=True)
+    # services_offered = serializers.PrimaryKeyRelatedField(queryset=Service.objects.all(), many=True)
 
     class Meta:
         model = Locksmith
@@ -105,6 +105,22 @@ class ServiceSerializer(serializers.ModelSerializer):
     class Meta:
         model = Service
         fields = ['id', 'locksmith', 'service_type', 'car_key_details', 'price', 'details']
+        
+        
+        
+        
+class LocksmithServiceSerializer(serializers.ModelSerializer):
+    car_key_details = CarKeyDetailsSerializer(read_only=True)
+    locksmith = LocksmithSerializer(read_only=True)
+    price = serializers.DecimalField(max_digits=10, decimal_places=2)
+
+    class Meta:
+        model = LocksmithService
+        fields = ['id', 'locksmith', 'service_type', 'car_key_details', 'price', 'details']
+
+
+
+
 
 class TransactionSerializer(serializers.ModelSerializer):
     service = ServiceSerializer(read_only=True)
@@ -150,12 +166,12 @@ class ServiceBidSerializer(serializers.ModelSerializer):
         return value
 
 class AdminSettingsSerializer(serializers.ModelSerializer):
-    commission_percentage = serializers.DecimalField(max_digits=5, decimal_places=2)
+    commission_amount = serializers.DecimalField(max_digits=5, decimal_places=2)
     platform_status = serializers.BooleanField(default=True)
 
     class Meta:
         model = AdminSettings
-        fields = ['commission_percentage', 'platform_status']
+        fields = ['commission_amount', 'platform_status']
 
     def update_commission(self, instance, validated_data):
         # Logic to update platform settings such as commission percentage
@@ -173,3 +189,27 @@ class PlatformStatisticsSerializer(serializers.ModelSerializer):
     class Meta:
         model = PlatformStatistics
         fields = ['total_transactions', 'total_locksmiths', 'total_customers', 'most_popular_service', 'top_locksmith']
+
+
+
+
+
+class LocksmithServiceSerializer(serializers.ModelSerializer):
+    total_cost = serializers.SerializerMethodField()
+    car_key_details = CarKeyDetailsSerializer(read_only=True)
+    locksmith = LocksmithSerializer(read_only=True)
+    price = serializers.DecimalField(max_digits=10, decimal_places=2)
+
+    class Meta:
+        model = LocksmithService
+        fields = ['id', 'locksmith', 'car_key_details','service_type', 'price', 'details', 'total_cost']
+
+    def get_total_cost(self, obj):
+        return obj.total_cost()  # Call total cost method
+
+
+
+
+
+
+        

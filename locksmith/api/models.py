@@ -30,7 +30,7 @@ class User(AbstractUser):
 
 # Admin Settings Model (For Commission & Platform Settings)  
 class AdminSettings(models.Model):
-    commission_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=10.00)  # Example: 10%
+    commission_amount = models.DecimalField(max_digits=5, decimal_places=2, default=14.00)  # Example: 10%
     platform_status = models.CharField(max_length=20, choices=[('active', 'Active'), ('inactive', 'Inactive')], default='active')
 
     def __str__(self):
@@ -80,6 +80,39 @@ class Service(models.Model):
 
     def __str__(self):
         return f"{self.service_type} - {self.locksmith.user.username}"
+    
+    
+    
+class LocksmithService(models.Model):
+    SERVICE_TYPES = [
+        ('key_duplication', 'Key Duplication'),
+        ('car_key_repair', 'Car Key Repair'),
+        ('home_lock_repair', 'Home Lock Repair'),
+        ('locked_unlocking', 'Locked Unlocking'),
+    ]
+
+    locksmith = models.ForeignKey(Locksmith, on_delete=models.CASCADE)
+    car_key_details = models.ForeignKey(CarKeyDetails, on_delete=models.SET_NULL, null=True, blank=True)
+    service_type = models.CharField(max_length=255, choices=SERVICE_TYPES, default='key_duplication')  
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    details = models.TextField(null=True, blank=True)
+
+    def total_cost(self):
+        """Calculate total cost including fixed admin commission amount"""
+        admin_settings = AdminSettings.objects.first()  # Get the admin settings
+        if admin_settings:
+            return self.price + admin_settings.commission_amount  # Add fixed amount
+        return self.price  # Default if no admin settings exist
+
+    def __str__(self):
+        return f"{self.service_type} - {self.locksmith.user.username} (Total Cost: {self.total_cost()})"
+    
+    def __str__(self):
+        return f"{self.service_type} - {self.locksmith.user.username}"
+    
+    
+    
+    
 
 # Bidding Model (Customers Place Bids for Service)
 class ServiceBid(models.Model):
@@ -92,6 +125,9 @@ class ServiceBid(models.Model):
 
     def __str__(self):
         return f"Bid {self.id} - {self.status} ({self.customer.username})"
+    
+    
+    
 
 # Service Request Model
 class ServiceRequest(models.Model):
