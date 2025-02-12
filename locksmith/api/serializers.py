@@ -5,7 +5,7 @@ import os
 from io import BytesIO
 from django.conf import settings
 from rest_framework import serializers
-from .models import User, Locksmith, CarKeyDetails, Service, Transaction, ServiceRequest, ServiceBid, AdminSettings, PlatformStatistics,LocksmithService
+from .models import User, Locksmith, Customer, CustomerServiceRequest , CarKeyDetails, Service, Transaction, ServiceRequest, ServiceBid, AdminSettings, PlatformStatistics,LocksmithService
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -74,7 +74,13 @@ class UserCreateSerializer(serializers.ModelSerializer):
             "qr_code_url": qr_code_url  # URL to access the saved QR code
         }
 
+# Customer Serializer
+class CustomerSerializer(serializers.ModelSerializer):
+    user = UserSerializer(read_only=True)
 
+    class Meta:
+        model = Customer
+        fields = ['id', 'user', 'address', 'contact_number']
 
 class LocksmithSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)  # Read-only user data
@@ -209,7 +215,15 @@ class LocksmithServiceSerializer(serializers.ModelSerializer):
 
 
 
+# Service Request Serializer
+class CustomerServiceRequestSerializer(serializers.ModelSerializer):
+    customer = CustomerSerializer(read_only=True)
+    locksmith = LocksmithSerializer(read_only=True)
+    service = LocksmithServiceSerializer(read_only=True)
 
+    class Meta:
+        model = CustomerServiceRequest
+        fields = ['id', 'customer', 'locksmith', 'service', 'status', 'requested_at']
 
 
         

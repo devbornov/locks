@@ -4,7 +4,7 @@ from .views import (
     UserViewSet, LocksmithViewSet, CarKeyDetailsViewSet, 
     ServiceViewSet, TransactionViewSet, 
     ServiceRequestViewSet, ServiceBidViewSet, 
-    AdminSettingsViewSet,AllLocksmiths,CustomersViewSet,AdmincomissionViewSet,LocksmithServiceViewSet
+    AdminSettingsViewSet,AllLocksmiths,CustomersViewSet,AdmincomissionViewSet,LocksmithServiceViewSet,CustomerServiceRequestViewSet
 )
 
 # Initialize Default Router
@@ -21,6 +21,7 @@ router.register(r'servicerequests', ServiceRequestViewSet)  # Add ServiceRequest
 router.register(r'servicebids', ServiceBidViewSet)  # Add ServiceBid viewset
 router.register(r'adminsettings', AdminSettingsViewSet)
 router.register(r'admincomission', AdmincomissionViewSet, basename='admincomission')
+router.register(r'customer_service_requests', CustomerServiceRequestViewSet, basename='service_request')
 # router.register(r'locksmithservices', LocksmithServiceUpdateViewSet, basename='locksmithservices')
 # Add AdminSettings viewset
 

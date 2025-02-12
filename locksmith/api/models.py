@@ -40,6 +40,19 @@ class AdminSettings(models.Model):
         verbose_name = 'Admin Settings'
         verbose_name_plural = 'Admin Settings'
 
+
+
+class Customer(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='customer_profile')
+    address = models.TextField(blank=True, null=True)
+    contact_number = models.CharField(max_length=15, blank=True, null=True, default="")  # Optional
+
+    def __str__(self):
+        return f"{self.user.username} - Customer"
+
+
+
+
 # Locksmith Model
 class Locksmith(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
@@ -164,6 +177,29 @@ class ServiceRequest(models.Model):
 
     def __str__(self):
         return f"Request by {self.customer.username} for {self.service.service_type} - {self.status}"
+    
+    
+    
+# Service Request Model (For Customers Requesting Locksmith Services)
+class CustomerServiceRequest(models.Model):
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('accepted', 'Accepted'),
+        ('rejected', 'Rejected'),
+        ('completed', 'Completed'),
+    ]
+
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
+    locksmith = models.ForeignKey(Locksmith, on_delete=models.CASCADE)
+    service = models.ForeignKey(LocksmithService, on_delete=models.CASCADE)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    requested_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Request by {self.customer.user.username} for {self.service.service_type} - Status: {self.status}"    
+    
+    
+
 
 # Transaction Model (For Payment & Commission)
 class Transaction(models.Model):

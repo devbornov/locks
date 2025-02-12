@@ -4,10 +4,10 @@ from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from .models import Service, AdminSettings
-from .serializers import AdminSettingsSerializer
-from .models import User, Locksmith, CarKeyDetails, Service, Transaction, ServiceRequest, ServiceBid,LocksmithService
+from .serializers import AdminSettingsSerializer, CustomerServiceRequestSerializer
+from .models import User, Locksmith, CarKeyDetails, Service, Transaction, ServiceRequest, ServiceBid,LocksmithService ,CustomerServiceRequest , Customer
 from .serializers import UserSerializer, LocksmithSerializer, CarKeyDetailsSerializer, ServiceSerializer, TransactionSerializer, ServiceRequestSerializer, ServiceBidSerializer,LocksmithServiceSerializer
-from .serializers import UserCreateSerializer
+from .serializers import UserCreateSerializer , CustomerSerializer
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.permissions import AllowAny
@@ -15,8 +15,14 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework import status
 from django.contrib.auth import authenticate
 import pyotp
-from rest_framework.parsers import MultiPartParser, FormParser
 
+from rest_framework import viewsets, permissions, status
+from rest_framework.response import Response
+from django.shortcuts import get_object_or_404
+from django.contrib.gis.geos import Point
+from django.contrib.gis.db.models.functions import Distance
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
 
 
 
@@ -656,3 +662,75 @@ class LocksmithServiceViewSet(viewsets.ModelViewSet):
                 "admin_commission": commission_amount,
                 "total_price": total_price
             }, status=status.HTTP_201_CREATED)
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+class CustomerServiceRequestViewSet(viewsets.ModelViewSet):
+    queryset = CustomerServiceRequest.objects.all()
+    serializer_class = CustomerServiceRequestSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        """Filter requests based on user role"""
+        user = self.request.user
+        queryset = CustomerServiceRequest.objects.all()
+
+        # 🔹 Customers see only their requests
+        if user.role == 'customer':
+            queryset = queryset.filter(customer__user=user)
+
+        # 🔹 Locksmiths see only assigned requests
+        elif user.role == 'locksmith':
+            queryset = queryset.filter(locksmith__user=user)
+
+        # 🔹 Distance-based filtering (for customers)
+        user_lat = self.request.query_params.get('latitude')
+        user_lon = self.request.query_params.get('longitude')
+
+        if user_lat and user_lon:
+            user_location = Point(float(user_lon), float(user_lat), srid=4326)
+            queryset = queryset.annotate(distance=Distance('locksmith__location', user_location)).order_by('distance')
+
+        return queryset
+
+    def perform_create(self, serializer):
+        """Assign customer and trigger WebSocket update"""
+        customer = get_object_or_404(Customer, user=self.request.user)
+        service_request = serializer.save(customer=customer)
+
+        # 🔹 Notify WebSocket clients
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            "service_requests",
+            {"type": "service_request_update", "data": {"message": "New service request created"}}
+        )
+
+    def partial_update(self, request, *args, **kwargs):
+        """Allow only locksmiths to update status and trigger WebSocket update"""
+        service_request = self.get_object()
+
+        if service_request.locksmith.user != request.user:
+            return Response({"error": "Only the assigned locksmith can update this request."}, status=403)
+
+        new_status = request.data.get('status')
+        if new_status in ['accepted', 'rejected', 'completed']:
+            service_request.status = new_status
+            service_request.save()
+
+            # 🔹 Notify WebSocket clients
+            channel_layer = get_channel_layer()
+            async_to_sync(channel_layer.group_send)(
+                "service_requests",
+                {"type": "service_request_update", "data": {"message": f"Request {service_request.id} updated to {new_status}"}}
+            )
+
+            return Response({"message": f"Service request updated to {new_status}."})
+        
+        return Response({"error": "Invalid status update."}, status=400)
