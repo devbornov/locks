@@ -4,7 +4,7 @@ from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from .models import Service, AdminSettings
-from .serializers import AdminSettingsSerializer, CustomerServiceRequestSerializer
+from .serializers import AdminSettingsSerializer, CustomerServiceRequestSerializer ,LocksmithCreateSerializer
 from .models import User, Locksmith, CarKeyDetails, Service, Transaction, ServiceRequest, ServiceBid,LocksmithService ,CustomerServiceRequest , Customer
 from .serializers import UserSerializer, LocksmithSerializer, CarKeyDetailsSerializer, ServiceSerializer, TransactionSerializer, ServiceRequestSerializer, ServiceBidSerializer,LocksmithServiceSerializer
 from .serializers import UserCreateSerializer , CustomerSerializer
@@ -103,23 +103,39 @@ class LocksmithRegisterView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
-        serializer = UserCreateSerializer(data=request.data)
+        serializer = LocksmithCreateSerializer(data=request.data)
         if serializer.is_valid():
             user = serializer.save()
             user.set_password(request.data['password'])  # Hash password
-            user.role = 'locksmith'  # Set the role explicitly
+            user.role = 'locksmith'  # Explicitly set the role
             user.save()
 
             # Generate authentication tokens
             refresh = RefreshToken.for_user(user)
+
+            # Generate TOTP details for Locksmith
+            totp_details = serializer.get_totp_details(user)
+
             return Response({
-                'message': 'User registered successfully. Please complete your locksmith profile.',
-                'user': serializer.data,
+                'message': 'Locksmith registered successfully. Please complete your profile.',
+                'user': {
+                    'id': user.id,
+                    'username': user.username,
+                    'email': user.email,
+                    'role': user.role,
+                    'totp_enabled': user.totp_enabled,
+                    'totp_secret': totp_details["totp_secret"],  # TOTP Key in Response
+                    'totp_qr_code': totp_details["totp_qr_code"],  # Base64 QR Code
+                    'totp_qr_code_url': totp_details["qr_code_url"],  # QR Image URL
+                },
                 'access': str(refresh.access_token),
                 'refresh': str(refresh)
             }, status=status.HTTP_201_CREATED)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    
+    
     
 class IsLocksmith(permissions.BasePermission):
     """

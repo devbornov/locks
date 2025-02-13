@@ -33,6 +33,7 @@ ALLOWED_HOSTS = ['*']
 
 INSTALLED_APPS = [
     'daphne',
+    'corsheaders',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -83,7 +84,10 @@ SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),  # Adjust as needed
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
 }
-
+SIMPLE_JWT = {
+    "ROTATE_REFRESH_TOKENS": True,  # Enables new refresh token generation
+    "BLACKLIST_AFTER_ROTATION": True,  # Blacklist old refresh tokens
+}
 
 AUTH_USER_MODEL = 'api.User'
 
@@ -97,6 +101,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
 ]
 
 ROOT_URLCONF = 'locksmith.urls'
@@ -198,3 +203,13 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
 ASGI_APPLICATION = "locksmith.asgi.application"
+
+
+
+
+CORS_ALLOW_ALL_ORIGINS = True
+
+
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",  # Replace with your frontend URL
+]

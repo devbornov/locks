@@ -53,7 +53,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
         qr = qrcode.make(totp_uri)
         
         # Define QR Code Save Path
-        qr_folder = os.path.join(settings.MEDIA_ROOT, "qr_codes")
+        qr_folder = os.path.join(settings.MEDIA_ROOT, "Customer_qr_codes")
         os.makedirs(qr_folder, exist_ok=True)  # Ensure directory exists
 
         qr_filename = f"{user.username}.png"
@@ -66,13 +66,79 @@ class UserCreateSerializer(serializers.ModelSerializer):
         qr_base64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
 
         # Generate Public URL for QR Code (if MEDIA_URL is set)
-        qr_code_url = f"{settings.MEDIA_URL}qr_codes/{qr_filename}"
+        qr_code_url = f"{settings.MEDIA_URL}Customer_qr_codes/{qr_filename}"
 
         return {
             "totp_secret": user.totp_secret,  # Include raw TOTP key
             "totp_qr_code": f"data:image/png;base64,{qr_base64}",  # Base64 QR Code
             "qr_code_url": qr_code_url  # URL to access the saved QR code
         }
+
+
+class LocksmithCreateSerializer(serializers.ModelSerializer):
+    totp_enabled = serializers.BooleanField(default=False, required=False)
+
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'email', 'password', 'role', 'totp_enabled']
+        extra_kwargs = {'password': {'write_only': True}}
+
+    def create(self, validated_data):
+        totp_enabled = validated_data.pop('totp_enabled', False)
+        password = validated_data.pop('password')
+
+        user = User.objects.create(**validated_data)
+        user.set_password(password)
+
+        if totp_enabled:
+            user.totp_secret = pyotp.random_base32()
+        else:
+            user.totp_secret = None
+
+        user.totp_enabled = totp_enabled
+        user.role = "locksmith"  # Ensure role is always 'locksmith'
+        user.save()
+
+        return user
+
+    def get_totp_details(self, user):
+        """Generate and return the TOTP secret and QR code for locksmiths."""
+        if not user.totp_secret:
+            return {"totp_secret": None, "totp_qr_code": None, "qr_code_url": None}
+
+        # Generate TOTP URI
+        totp_uri = pyotp.totp.TOTP(user.totp_secret).provisioning_uri(
+            name=user.email, issuer_name="locksmith"
+        )
+
+        # Generate QR Code
+        qr = qrcode.make(totp_uri)
+
+        # Define QR Code Save Path for Locksmiths
+        qr_folder = os.path.join(settings.MEDIA_ROOT, "Locksmith_qr_codes")
+        os.makedirs(qr_folder, exist_ok=True)  # Ensure directory exists
+
+        qr_filename = f"{user.username}.png"
+        qr_path = os.path.join(qr_folder, qr_filename)
+        qr.save(qr_path)  # Save QR Code
+
+        # Convert QR Code to Base64
+        buffered = BytesIO()
+        qr.save(buffered, format="PNG")
+        qr_base64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
+
+        # Generate Public URL for QR Code (if MEDIA_URL is set)
+        qr_code_url = f"{settings.MEDIA_URL}Locksmith_qr_codes/{qr_filename}"
+
+        return {
+            "totp_secret": user.totp_secret,  # Include raw TOTP key
+            "totp_qr_code": f"data:image/png;base64,{qr_base64}",  # Base64 QR Code
+            "qr_code_url": qr_code_url  # URL to access the saved QR code
+        }
+
+
+
+
 
 # Customer Serializer
 class CustomerSerializer(serializers.ModelSerializer):
@@ -83,7 +149,7 @@ class CustomerSerializer(serializers.ModelSerializer):
         fields = ['id', 'user', 'address', 'contact_number']
 
 class LocksmithSerializer(serializers.ModelSerializer):
-    user = UserSerializer(read_only=True)  # Read-only user data
+    user = LocksmithCreateSerializer(read_only=True)  # Read-only user data
     # services_offered = serializers.PrimaryKeyRelatedField(queryset=Service.objects.all(), many=True)
 
     class Meta:
