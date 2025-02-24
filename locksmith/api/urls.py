@@ -4,13 +4,14 @@ from .views import (
     UserViewSet, LocksmithViewSet, CarKeyDetailsViewSet, 
     ServiceViewSet, TransactionViewSet, 
     ServiceRequestViewSet, ServiceBidViewSet, 
-    AdminSettingsViewSet,AllLocksmiths,CustomersViewSet,AdmincomissionViewSet,LocksmithServiceViewSet,CustomerServiceRequestViewSet
+    AdminSettingsViewSet,AllLocksmiths,CustomersViewSet,AdmincomissionViewSet,LocksmithServiceViewSet,CustomerServiceRequestViewSet,Approvalverification
 )
 
 # Initialize Default Router
 router = DefaultRouter()
 router.register(r'users', UserViewSet),
 router.register(r'locksmiths', LocksmithViewSet)
+router.register(r'Approvalverification',Approvalverification,basename='Approvalverification')
 router.register(r'alllocksmiths', AllLocksmiths,basename='alllocksmiths')
 router.register(r'allcustomers', CustomersViewSet,basename='allcustomers')
 router.register(r'carkeydetails', CarKeyDetailsViewSet)

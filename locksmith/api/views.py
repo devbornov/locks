@@ -134,7 +134,19 @@ class LocksmithRegisterView(APIView):
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
-    
+class LogoutView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        try:
+            refresh_token = request.data["refresh"]
+            token = RefreshToken(refresh_token)
+            token.blacklist()  # Blacklist the refresh token
+
+            return Response({"message": "Logout successful"}, status=status.HTTP_205_RESET_CONTENT)
+
+        except Exception as e:
+            return Response({"error": "Invalid token"}, status=status.HTTP_400_BAD_REQUEST)    
     
     
 class IsLocksmith(permissions.BasePermission):
@@ -193,7 +205,32 @@ class LocksmithProfileView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     
+class Approvalverification(viewsets.ModelViewSet):
+    serializer_class = LocksmithSerializer
+    permission_classes = [IsAuthenticated]  # Ensures only authenticated users can access
+
+    def get_queryset(self):
+        """
+        Filter locksmith profiles by logged-in user.
+        """
+        user = self.request.user
+        return Locksmith.objects.filter(user=user)  # Return only the locksmith profile of the logged-in user
+
+    def retrieve(self, request, *args, **kwargs):
+        """
+        Retrieve a specific locksmith profile by ID.
+        """
+        user = self.request.user
+        locksmith_id = self.kwargs.get("pk")  # Get locksmith ID from the URL
+        
+        try:
+            locksmith = Locksmith.objects.get(id=locksmith_id, user=user)
+            serializer = self.get_serializer(locksmith)
+            return Response(serializer.data)
+        except Locksmith.DoesNotExist:
+            return Response({"error": "Locksmith profile not found."}, status=404)
     
+       
 class LocksmithViewSet(viewsets.ModelViewSet):
     queryset = Locksmith.objects.all()
     serializer_class = LocksmithSerializer

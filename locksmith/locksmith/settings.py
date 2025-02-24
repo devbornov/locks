@@ -80,14 +80,16 @@ REST_FRAMEWORK = {
     ],
 }
 
+
+
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),  # Adjust as needed
+   'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),  # Adjust as needed
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
+     "ROTATE_REFRESH_TOKENS": True,  # Enables new refresh token generation
+    "BLACKLIST_AFTER_ROTATION": True, 
+    'AUTH_HEADER_TYPES': ('Bearer',),
 }
-SIMPLE_JWT = {
-    "ROTATE_REFRESH_TOKENS": True,  # Enables new refresh token generation
-    "BLACKLIST_AFTER_ROTATION": True,  # Blacklist old refresh tokens
-}
+
 
 AUTH_USER_MODEL = 'api.User'
 
@@ -97,11 +99,11 @@ MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'corsheaders.middleware.CorsMiddleware',
+    'django.middleware.csrf.CsrfViewMiddleware',
 ]
 
 ROOT_URLCONF = 'locksmith.urls'
@@ -213,3 +215,6 @@ CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",  # Replace with your frontend URL
 ]
+
+
+CSRF_TRUSTED_ORIGINS = ["http://localhost:3000"]
