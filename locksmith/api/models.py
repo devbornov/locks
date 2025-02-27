@@ -93,45 +93,63 @@ class Service(models.Model):
 
     def __str__(self):
         return f"{self.service_type} - {self.locksmith.user.username}"
+
+
+
+
+ 
+# 
+
+ 
+
+
+
+class AdminService(models.Model):
+    name = models.CharField(max_length=255, unique=True)
+    base_price = models.DecimalField(max_digits=10, decimal_places=2)
+    description = models.TextField(null=True, blank=True)
     
+    def __str__(self):
+        return self.name    
     
-    
-class LocksmithService(models.Model):
+
+class LocksmithServices(models.Model):
     SERVICE_TYPES = [
-        ('key_duplication', 'Key Duplication'),
-        ('car_key_repair', 'Car Key Repair'),
-        ('home_lock_repair', 'Home Lock Repair'),
-        ('locked_unlocking', 'Locked Unlocking'),
+        ('smart_lock', 'Smart Lock'),
+        ('emergency', 'Emergency'),
+        ('automotive', 'Automotive'),
+        ('commercial', 'Commercial'),
+        ('residential', 'Residential'),
     ]
 
     locksmith = models.ForeignKey(Locksmith, on_delete=models.CASCADE)
-    car_key_details = models.ForeignKey(CarKeyDetails, on_delete=models.SET_NULL, null=True, blank=True)
-    service_type = models.CharField(max_length=255, choices=SERVICE_TYPES, default='key_duplication')  
-    price = models.DecimalField(max_digits=10, decimal_places=2)
+    admin_service = models.ForeignKey(AdminService, on_delete=models.CASCADE)
+    custom_price = models.DecimalField(max_digits=10, decimal_places=2)  # Entered by locksmith
+    total_price = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)  # Calculated
     details = models.TextField(null=True, blank=True)
+    approved = models.BooleanField(default=False)
+    service_type = models.CharField(
+        max_length=20,
+        choices=SERVICE_TYPES,
+        default='residential'  # Set a default value to prevent migration issues
+    )
 
-    def total_cost(self):
-        """Calculate total cost including fixed admin commission amount"""
-        admin_settings = AdminSettings.objects.first()  # Get the admin settings
-        if admin_settings:
-            return self.price + admin_settings.commission_amount  # Add fixed amount
-        return self.price  # Default if no admin settings exist
+    def save(self, *args, **kwargs):
+        """Ensure total_price is always updated as custom_price + base_price."""
+        if self.custom_price is not None and self.admin_service is not None:
+            self.total_price = self.custom_price + self.admin_service.base_price
+        super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.service_type} - {self.locksmith.user.username} (Total Cost: {self.total_cost()})"
-    
-    def __str__(self):
-        return f"{self.service_type} - {self.locksmith.user.username}"
-    
-    
-    
+        return f"{self.admin_service.name} - {self.locksmith.user.username} ({self.service_type})"
+
     
 
 # Bidding Model (Customers Place Bids for Service)
 class ServiceBid(models.Model):
     customer = models.ForeignKey(User, on_delete=models.CASCADE)
     locksmith = models.ForeignKey(Locksmith, on_delete=models.CASCADE)
-    service = models.ForeignKey(Service, on_delete=models.CASCADE)
+    service = models.ForeignKey(LocksmithServices, on_delete=models.CASCADE)
     bid_price = models.DecimalField(max_digits=10, decimal_places=2)
     status = models.CharField(max_length=50, choices=[('pending', 'Pending'), ('accepted', 'Accepted'), ('rejected', 'Rejected')], default='pending')
     created_at = models.DateTimeField(auto_now_add=True)
@@ -191,7 +209,7 @@ class CustomerServiceRequest(models.Model):
 
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
     locksmith = models.ForeignKey(Locksmith, on_delete=models.CASCADE)
-    service = models.ForeignKey(LocksmithService, on_delete=models.CASCADE)
+    service = models.ForeignKey(LocksmithServices, on_delete=models.CASCADE)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     requested_at = models.DateTimeField(auto_now_add=True)
 

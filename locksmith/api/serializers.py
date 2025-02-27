@@ -5,7 +5,7 @@ import os
 from io import BytesIO
 from django.conf import settings
 from rest_framework import serializers
-from .models import User, Locksmith, Customer, CustomerServiceRequest , CarKeyDetails, Service, Transaction, ServiceRequest, ServiceBid, AdminSettings, PlatformStatistics,LocksmithService
+from .models import User, Locksmith, Customer, CustomerServiceRequest , CarKeyDetails, Service, Transaction, ServiceRequest, ServiceBid, AdminSettings, PlatformStatistics,LocksmithServices,AdminService
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -187,7 +187,7 @@ class LocksmithServiceSerializer(serializers.ModelSerializer):
     price = serializers.DecimalField(max_digits=10, decimal_places=2)
 
     class Meta:
-        model = LocksmithService
+        model = LocksmithServices
         fields = ['id', 'locksmith', 'service_type', 'car_key_details', 'price', 'details']
 
 
@@ -267,17 +267,62 @@ class PlatformStatisticsSerializer(serializers.ModelSerializer):
 
 
 class LocksmithServiceSerializer(serializers.ModelSerializer):
-    total_cost = serializers.SerializerMethodField()
-    car_key_details = CarKeyDetailsSerializer(read_only=True)
-    locksmith = LocksmithSerializer(read_only=True)
-    price = serializers.DecimalField(max_digits=10, decimal_places=2)
+    admin_service_id = serializers.PrimaryKeyRelatedField(
+        queryset=AdminService.objects.all(),
+        source='admin_service'
+    )
+    admin_service_name = serializers.SerializerMethodField()
+    locksmith_name = serializers.SerializerMethodField()  # New field for locksmith's name
 
     class Meta:
-        model = LocksmithService
-        fields = ['id', 'locksmith', 'car_key_details','service_type', 'price', 'details', 'total_cost']
+        model = LocksmithServices
+        fields = ['id', 'locksmith_name', 'admin_service_id', 'admin_service_name', 'service_type', 'custom_price', 'total_price', 'details', 'approved']
+        read_only_fields = ['total_price']
+
+    def get_admin_service_name(self, obj):
+        return obj.admin_service.name if obj.admin_service else None
+
+    def get_locksmith_name(self, obj):
+        """Retrieve the associated locksmith's username."""
+        return obj.locksmith.user.username if obj.locksmith else None
+
+    def create(self, validated_data):
+        """Assign locksmith based on logged-in user."""
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            raise serializers.ValidationError({"error": "User must be authenticated."})
+
+        try:
+            locksmith = request.user.locksmith  # Get locksmith instance from authenticated user
+        except AttributeError:
+            raise serializers.ValidationError({"error": "User is not associated with a locksmith account."})
+
+        validated_data['locksmith'] = locksmith  # Assign locksmith automatically
+        return super().create(validated_data)
 
     def get_total_cost(self, obj):
-        return obj.total_cost()  # Call total cost method
+        return obj.total_cost()
+
+
+class AdminServiceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AdminService
+        fields = ['id', 'name', 'base_price', 'description']
+        
+        
+
+# class LocksmithServiceSerializer(serializers.ModelSerializer):
+#     total_cost = serializers.SerializerMethodField()
+#     car_key_details = CarKeyDetailsSerializer(read_only=True)
+#     locksmith = LocksmithSerializer(read_only=True)
+#     price = serializers.DecimalField(max_digits=10, decimal_places=2)
+
+#     class Meta:
+#         model = LocksmithService
+#         fields = ['id', 'locksmith', 'car_key_details','service_type', 'price', 'details', 'total_cost']
+
+#     def get_total_cost(self, obj):
+#         return obj.total_cost()  # Call total cost method
 
 
 

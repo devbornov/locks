@@ -5,9 +5,9 @@ from rest_framework.response import Response
 from rest_framework.decorators import action
 from .models import Service, AdminSettings
 from .serializers import AdminSettingsSerializer, CustomerServiceRequestSerializer ,LocksmithCreateSerializer
-from .models import User, Locksmith, CarKeyDetails, Service, Transaction, ServiceRequest, ServiceBid,LocksmithService ,CustomerServiceRequest , Customer
+from .models import User, Locksmith, CarKeyDetails, Service, Transaction, ServiceRequest, ServiceBid ,CustomerServiceRequest , Customer , AdminService,LocksmithServices
 from .serializers import UserSerializer, LocksmithSerializer, CarKeyDetailsSerializer, ServiceSerializer, TransactionSerializer, ServiceRequestSerializer, ServiceBidSerializer,LocksmithServiceSerializer
-from .serializers import UserCreateSerializer , CustomerSerializer
+from .serializers import UserCreateSerializer , CustomerSerializer , AdminServiceSerializer
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.permissions import AllowAny
@@ -449,16 +449,126 @@ class CarKeyDetailsViewSet(viewsets.ModelViewSet):
     serializer_class = CarKeyDetailsSerializer
     permission_classes = [IsAdmin]  # Only Admin can manage car key details
 
-class ServiceViewSet(viewsets.ModelViewSet):
-    queryset = LocksmithService.objects.all()
-    serializer_class = LocksmithServiceSerializer
-    permission_classes=[IsAdminOrCustomer]
+# class ServiceViewSet(viewsets.ModelViewSet):
+#     queryset = LocksmithService.objects.all()
+#     serializer_class = LocksmithServiceSerializer
+#     # permission_classes=[IsAdminOrCustomer]
 
-    @action(detail=False, methods=['get'], permission_classes=[IsAdmin])
-    def platform_settings(self, request):
-        # Returns platform settings like commission percentage
-        platform_settings = AdminSettings.objects.first()
-        return Response({'commission_percentage': platform_settings.commission_percentage, 'platform_status': platform_settings.platform_status})
+#     @action(detail=False, methods=['get'], permission_classes=[IsAdmin])
+#     def platform_settings(self, request):
+#         # Returns platform settings like commission percentage
+#         platform_settings = AdminSettings.objects.first()
+#         return Response({'commission_percentage': platform_settings.commission_percentage, 'platform_status': platform_settings.platform_status})
+
+
+
+class AdminLocksmithServiceApprovalViewSet(viewsets.ViewSet):
+    permission_classes = [IsAdminUser]
+    
+    @action(detail=True, methods=['post'])
+    def approve(self, request, pk=None):
+        service = get_object_or_404(LocksmithServices, pk=pk)
+        service.approved = True
+        service.save()
+        return Response({"status": "Service approved"})
+
+    @action(detail=True, methods=['post'])
+    def reject(self, request, pk=None):
+        service = get_object_or_404(LocksmithServices, pk=pk)
+        service.delete()
+        return Response({"status": "Service rejected"})
+
+class AdminLocksmithServiceViewSet(viewsets.ModelViewSet):
+    """
+    Admin can manage services that locksmiths can choose from.
+    """
+    queryset = AdminService.objects.all()
+    serializer_class = AdminServiceSerializer
+    permission_classes = [permissions.IsAdminUser]
+
+    @action(detail=False, methods=['get'])
+    def list_approved_services(self, request):
+        """Get all services that are approved by the admin"""
+        approved_services = LocksmithServices.objects.filter(approved=True)
+        serializer = LocksmithServiceSerializer(approved_services, many=True)
+        return Response(serializer.data)
+    
+    
+    @action(detail=False, methods=['get'],permission_classes=[IsCustomer])
+    def services_to_customer(self, request):
+        """Get all approved services, optionally filtered by service type."""
+        service_type = request.query_params.get('service_type', None)  # Get service type from request
+
+        approved_services = LocksmithServices.objects.filter(approved=True)
+
+        # Apply filtering if service_type is provided
+        if service_type:
+            approved_services = approved_services.filter(service_type=service_type)
+
+        serializer = LocksmithServiceSerializer(approved_services, many=True)
+        return Response(serializer.data)
+    
+    
+    @action(detail=False, methods=['get'], permission_classes=[permissions.IsAuthenticated])
+    def available_services(self, request):
+        """
+        Get all services added by the admin so the logged-in locksmith can choose.
+        """
+        services = AdminService.objects.all()
+        serializer = AdminServiceSerializer(services, many=True)
+        return Response(serializer.data)
+
+    
+    @action(detail=False, methods=['get'], permission_classes=[permissions.IsAdminUser])
+    def all_locksmith_services(self, request):
+        """
+        Admin can view all services added by locksmiths (both approved and pending).
+        """
+        services = LocksmithServices.objects.all()
+        serializer = LocksmithServiceSerializer(services, many=True)
+        return Response(serializer.data)
+    
+    
+    
+    def destroy(self, request, pk=None):
+        """Delete an admin service"""
+        service = get_object_or_404(AdminService, pk=pk)
+        service.delete()
+        return Response({"status": "Service deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+    
+    
+    
+class ServiceViewSet(viewsets.ModelViewSet):
+    serializer_class = LocksmithServiceSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        """Return only services belonging to the logged-in locksmith."""
+        user = self.request.user
+        try:
+            locksmith = user.locksmith  # Ensure user is linked to a Locksmith
+            return LocksmithServices.objects.filter(locksmith=locksmith)
+        except AttributeError:
+            return LocksmithServices.objects.none()  # Return empty if not a locksmith
+
+    def perform_create(self, serializer):
+        """Automatically assign the logged-in locksmith and calculate total price."""
+        user = self.request.user
+
+        try:
+            locksmith = user.locksmith  # Ensure the user is linked to a Locksmith
+            
+            # Save service with locksmith and approved=False
+            service = serializer.save(locksmith=locksmith, approved=False)
+
+            # Calculate total price
+            service.total_price = service.custom_price + service.admin_service.base_price
+            service.save()
+
+        except AttributeError:
+            raise serializers.ValidationError({"error": "User is not associated with a locksmith account."})
+
+
 
 class TransactionViewSet(viewsets.ModelViewSet):
     queryset = Transaction.objects.all()
@@ -638,83 +748,83 @@ class CustomerDashboardViewSet(viewsets.GenericViewSet):
 
 
 
-class LocksmithServiceViewSet(viewsets.ModelViewSet):
-    queryset = LocksmithService.objects.all()
-    serializer_class = LocksmithServiceSerializer
-    permission_classes = [IsAuthenticated]
+# class LocksmithServiceViewSet(viewsets.ModelViewSet):
+#     queryset = LocksmithService.objects.all()
+#     serializer_class = LocksmithServiceSerializer
+#     permission_classes = [IsAuthenticated]
 
-    def create(self, request, *args, **kwargs):
-        """
-        Create a new locksmith service with admin commission included.
-        """
-        # Get the authenticated locksmith
-        user = request.user
-        try:
-            locksmith = Locksmith.objects.get(user=user)
-        except Locksmith.DoesNotExist:
-            return Response({"error": "Locksmith profile not found."}, status=status.HTTP_404_NOT_FOUND)
+#     def create(self, request, *args, **kwargs):
+#         """
+#         Create a new locksmith service with admin commission included.
+#         """
+#         # Get the authenticated locksmith
+#         user = request.user
+#         try:
+#             locksmith = Locksmith.objects.get(user=user)
+#         except Locksmith.DoesNotExist:
+#             return Response({"error": "Locksmith profile not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        # Ensure the locksmith is approved before allowing service creation
-        if not locksmith.is_approved:
-            return Response({"error": "Locksmith is not approved."}, status=status.HTTP_403_FORBIDDEN)
+#         # Ensure the locksmith is approved before allowing service creation
+#         if not locksmith.is_approved:
+#             return Response({"error": "Locksmith is not approved."}, status=status.HTTP_403_FORBIDDEN)
 
-        # Extract the necessary data from the request
-        service_type = request.data.get("service_type")
-        base_price = request.data.get("price")
-        details = request.data.get("details", "")
+#         # Extract the necessary data from the request
+#         service_type = request.data.get("service_type")
+#         base_price = request.data.get("price")
+#         details = request.data.get("details", "")
 
-        # Validate price input
-        try:
-            base_price = float(base_price)
-        except (TypeError, ValueError):
-            return Response({"error": "Invalid price format."}, status=status.HTTP_400_BAD_REQUEST)
+#         # Validate price input
+#         try:
+#             base_price = float(base_price)
+#         except (TypeError, ValueError):
+#             return Response({"error": "Invalid price format."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Fetch admin commission amount and ensure it's a float
-        admin_settings = AdminSettings.objects.first()
-        commission_amount = admin_settings.commission_amount if admin_settings else 0.00
-        commission_amount = float(commission_amount)  # Make sure it's a float for calculation
+#         # Fetch admin commission amount and ensure it's a float
+#         admin_settings = AdminSettings.objects.first()
+#         commission_amount = admin_settings.commission_amount if admin_settings else 0.00
+#         commission_amount = float(commission_amount)  # Make sure it's a float for calculation
 
-        # DEBUG: Print commission value and base price for clarity
-        print(f"Base Price: {base_price}, Commission Amount: {commission_amount}")
+#         # DEBUG: Print commission value and base price for clarity
+#         print(f"Base Price: {base_price}, Commission Amount: {commission_amount}")
 
-        # Calculate the total price: base price + commission
-        total_price = base_price + commission_amount  # Ensure commission is added only once
-        print(f"Total Price (Base Price + Commission): {total_price}")
+#         # Calculate the total price: base price + commission
+#         total_price = base_price + commission_amount  # Ensure commission is added only once
+#         print(f"Total Price (Base Price + Commission): {total_price}")
 
-        # Check if the locksmith already has a service entry for this service type
-        service = LocksmithService.objects.filter(locksmith=locksmith, service_type=service_type).first()
+#         # Check if the locksmith already has a service entry for this service type
+#         service = LocksmithService.objects.filter(locksmith=locksmith, service_type=service_type).first()
 
-        if service:
-            # If service exists, update it
-            service.price = total_price  # Only update the price field (don't add commission again)
-            service.details = details
-            service.save()
-            return Response({
-                "message": "Service updated successfully with admin commission.",
-                "service_id": service.id,
-                "locksmith": locksmith.user.username,
-                "service_type": service.service_type,
-                "base_price": base_price,
-                "admin_commission": commission_amount,
-                "total_price": total_price
-            }, status=status.HTTP_200_OK)
-        else:
-            # If no existing service, create a new one
-            service = LocksmithService.objects.create(
-                locksmith=locksmith,
-                service_type=service_type,
-                price=total_price,  # Store total price (base price + commission)
-                details=details
-            )
-            return Response({
-                "message": "Service created successfully with admin commission.",
-                "service_id": service.id,
-                "locksmith": locksmith.user.username,
-                "service_type": service.service_type,
-                "base_price": base_price,
-                "admin_commission": commission_amount,
-                "total_price": total_price
-            }, status=status.HTTP_201_CREATED)
+#         if service:
+#             # If service exists, update it
+#             service.price = total_price  # Only update the price field (don't add commission again)
+#             service.details = details
+#             service.save()
+#             return Response({
+#                 "message": "Service updated successfully with admin commission.",
+#                 "service_id": service.id,
+#                 "locksmith": locksmith.user.username,
+#                 "service_type": service.service_type,
+#                 "base_price": base_price,
+#                 "admin_commission": commission_amount,
+#                 "total_price": total_price
+#             }, status=status.HTTP_200_OK)
+#         else:
+#             # If no existing service, create a new one
+#             service = LocksmithService.objects.create(
+#                 locksmith=locksmith,
+#                 service_type=service_type,
+#                 price=total_price,  # Store total price (base price + commission)
+#                 details=details
+#             )
+#             return Response({
+#                 "message": "Service created successfully with admin commission.",
+#                 "service_id": service.id,
+#                 "locksmith": locksmith.user.username,
+#                 "service_type": service.service_type,
+#                 "base_price": base_price,
+#                 "admin_commission": commission_amount,
+#                 "total_price": total_price
+#             }, status=status.HTTP_201_CREATED)
             
             
             
