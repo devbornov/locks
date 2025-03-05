@@ -56,20 +56,22 @@ class Customer(models.Model):
 # Locksmith Model
 class Locksmith(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
-    service_area = models.CharField(max_length=255, default="")  # Ensure default for service area
-    is_approved = models.BooleanField(default=False)  # Admin approves locksmiths
-    reputation_score = models.DecimalField(max_digits=5, decimal_places=2, default=0.0)  # Reputation Score
+    service_area = models.CharField(max_length=255, default="")
+    stripe_account_id = models.CharField(max_length=255, blank=True, null=True)  # ✅ Store Stripe ID
+    is_approved = models.BooleanField(default=False)
+    reputation_score = models.DecimalField(max_digits=5, decimal_places=2, default=0.0)
     latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
-    address = models.TextField(default="")  # Default empty string to prevent null issues
-    contact_number = models.CharField(max_length=15, blank=True, null=True, default="")  # Allow blank/null
-    pcc_file = models.FileField(upload_to='locksmiths/pcc/', blank=True, null=True)  # Allow file to be optional
-    license_file = models.FileField(upload_to='locksmiths/license/', blank=True, null=True)  # Allow blank/null
-    photo = models.ImageField(upload_to='locksmiths/photos/', blank=True, null=True)  # Allow blank/null
-    is_verified = models.BooleanField(default=False)  # Initially not verified
+    address = models.TextField(default="")
+    contact_number = models.CharField(max_length=15, blank=True, null=True, default="")
+    pcc_file = models.FileField(upload_to='locksmiths/pcc/', blank=True, null=True)
+    license_file = models.FileField(upload_to='locksmiths/license/', blank=True, null=True)
+    photo = models.ImageField(upload_to='locksmiths/photos/', blank=True, null=True)
+    is_verified = models.BooleanField(default=False)
 
     def __str__(self):
         return f"{self.user.username} - {self.service_area}"
+
 
 
 
@@ -228,6 +230,7 @@ class Transaction(models.Model):
     commission = models.DecimalField(max_digits=10, decimal_places=2)  # Admin takes commission
     status = models.CharField(max_length=50, choices=[('pending', 'Pending'), ('paid', 'Paid')], default='pending')
     created_at = models.DateTimeField(auto_now_add=True)
+    payment_intent_id = models.CharField(max_length=255, blank=True, null=True)  # ✅ Store Stripe PaymentIntent ID
 
     def mark_as_paid(self):
         """Mark transaction as paid"""
@@ -247,3 +250,23 @@ class PlatformStatistics(models.Model):
 
     def __str__(self):
         return f"Platform Stats - {self.total_transactions} Transactions"
+
+
+
+
+class Booking(models.Model):
+    customer = models.ForeignKey(User, on_delete=models.CASCADE, related_name="bookings")
+    locksmith_service = models.ForeignKey(LocksmithServices, on_delete=models.CASCADE)
+    scheduled_date = models.DateTimeField()
+    status = models.CharField(
+        max_length=20, choices=[('Scheduled', 'Scheduled'), ('Completed', 'Completed'), ('Cancelled', 'Cancelled')], default='Scheduled'
+    )
+    payment_intent_id = models.CharField(max_length=255, blank=True, null=True)  # ✅ Store Stripe PaymentIntent ID
+
+    def complete(self):
+        self.status = 'Completed'
+        self.save()
+
+    def cancel(self):
+        self.status = 'Cancelled'
+        self.save()

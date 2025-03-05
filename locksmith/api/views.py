@@ -5,9 +5,9 @@ from rest_framework.response import Response
 from rest_framework.decorators import action
 from .models import Service, AdminSettings
 from .serializers import AdminSettingsSerializer, CustomerServiceRequestSerializer ,LocksmithCreateSerializer
-from .models import User, Locksmith, CarKeyDetails, Service, Transaction, ServiceRequest, ServiceBid ,CustomerServiceRequest , Customer , AdminService,LocksmithServices
+from .models import User, Locksmith, CarKeyDetails, Service, Transaction, ServiceRequest, ServiceBid ,CustomerServiceRequest , Customer , AdminService,LocksmithServices , Booking
 from .serializers import UserSerializer, LocksmithSerializer, CarKeyDetailsSerializer, ServiceSerializer, TransactionSerializer, ServiceRequestSerializer, ServiceBidSerializer,LocksmithServiceSerializer
-from .serializers import UserCreateSerializer , CustomerSerializer , AdminServiceSerializer
+from .serializers import UserCreateSerializer , CustomerSerializer , AdminServiceSerializer , BookingSerializer
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.permissions import AllowAny
@@ -231,108 +231,108 @@ class Approvalverification(viewsets.ModelViewSet):
             return Response({"error": "Locksmith profile not found."}, status=404)
     
        
-class LocksmithViewSet(viewsets.ModelViewSet):
-    queryset = Locksmith.objects.all()
-    serializer_class = LocksmithSerializer
-    permission_classes = [IsAdmin]  # Only Admin can manage locksmiths
+# class LocksmithViewSet(viewsets.ModelViewSet):
+#     queryset = Locksmith.objects.all()
+#     serializer_class = LocksmithSerializer
+#     permission_classes = [IsAdmin]  # Only Admin can manage locksmiths
 
-    @action(detail=True, methods=['put'], permission_classes=[IsAdmin])
-    def verify_locksmith(self, request, pk=None):
-        locksmith = self.get_object()
-        locksmith.is_verified = True
-        locksmith.is_approved = True  # Approve upon verification
-        locksmith.save()
-        locksmith_data = {
-            "id": locksmith.id,
-            "user": {
-                "id": locksmith.user.id,
-                "username": locksmith.user.username,
-                "full_name": locksmith.user.get_full_name(),
-                "email": locksmith.user.email
-            },
-            "service_area": locksmith.service_area,
-            "address": locksmith.address,
-            "contact_number": locksmith.contact_number,
-            "latitude": locksmith.latitude,
-            "longitude": locksmith.longitude,
-            "reputation_score": str(locksmith.reputation_score),  # Convert Decimal to string for JSON
-            "pcc_file": locksmith.pcc_file.url if locksmith.pcc_file else None,
-            "license_file": locksmith.license_file.url if locksmith.license_file else None,
-            "photo": locksmith.photo.url if locksmith.photo else None,
-            "is_verified": locksmith.is_verified,
-            "is_approved": locksmith.is_approved,
-            "created_at": locksmith.created_at.strftime('%Y-%m-%d %H:%M:%S') if hasattr(locksmith, 'created_at') else None,
-            "updated_at": locksmith.updated_at.strftime('%Y-%m-%d %H:%M:%S') if hasattr(locksmith, 'updated_at') else None
-        }
+#     @action(detail=True, methods=['put'], permission_classes=[IsAdmin])
+#     def verify_locksmith(self, request, pk=None):
+#         locksmith = self.get_object()
+#         locksmith.is_verified = True
+#         locksmith.is_approved = True  # Approve upon verification
+#         locksmith.save()
+#         locksmith_data = {
+#             "id": locksmith.id,
+#             "user": {
+#                 "id": locksmith.user.id,
+#                 "username": locksmith.user.username,
+#                 "full_name": locksmith.user.get_full_name(),
+#                 "email": locksmith.user.email
+#             },
+#             "service_area": locksmith.service_area,
+#             "address": locksmith.address,
+#             "contact_number": locksmith.contact_number,
+#             "latitude": locksmith.latitude,
+#             "longitude": locksmith.longitude,
+#             "reputation_score": str(locksmith.reputation_score),  # Convert Decimal to string for JSON
+#             "pcc_file": locksmith.pcc_file.url if locksmith.pcc_file else None,
+#             "license_file": locksmith.license_file.url if locksmith.license_file else None,
+#             "photo": locksmith.photo.url if locksmith.photo else None,
+#             "is_verified": locksmith.is_verified,
+#             "is_approved": locksmith.is_approved,
+#             "created_at": locksmith.created_at.strftime('%Y-%m-%d %H:%M:%S') if hasattr(locksmith, 'created_at') else None,
+#             "updated_at": locksmith.updated_at.strftime('%Y-%m-%d %H:%M:%S') if hasattr(locksmith, 'updated_at') else None
+#         }
 
-        return Response({
-            'status': 'Locksmith details verified and approved',
-            'locksmith_data': locksmith_data
-        })
+#         return Response({
+#             'status': 'Locksmith details verified and approved',
+#             'locksmith_data': locksmith_data
+#         })
 
-    @action(detail=True, methods=['put'], permission_classes=[IsAdmin])
-    def reject_locksmith(self, request, pk=None):
-        locksmith = self.get_object()
-        locksmith.is_verified = False
-        locksmith.is_approved = False
-        locksmith.save()
-        locksmith_data = {
-            "id": locksmith.id,
-            "user": {
-                "id": locksmith.user.id,
-                "username": locksmith.user.username,
-                "full_name": locksmith.user.get_full_name(),
-                "email": locksmith.user.email
-            },
-            "service_area": locksmith.service_area,
-            "address": locksmith.address,
-            "contact_number": locksmith.contact_number,
-            "latitude": locksmith.latitude,
-            "longitude": locksmith.longitude,
-            "reputation_score": str(locksmith.reputation_score),  # Convert Decimal to string for JSON
-            "pcc_file": locksmith.pcc_file.url if locksmith.pcc_file else None,
-            "license_file": locksmith.license_file.url if locksmith.license_file else None,
-            "photo": locksmith.photo.url if locksmith.photo else None,
-            "is_verified": locksmith.is_verified,
-            "is_approved": locksmith.is_approved,
-            "created_at": locksmith.created_at.strftime('%Y-%m-%d %H:%M:%S') if hasattr(locksmith, 'created_at') else None,
-            "updated_at": locksmith.updated_at.strftime('%Y-%m-%d %H:%M:%S') if hasattr(locksmith, 'updated_at') else None
-        }
+#     @action(detail=True, methods=['put'], permission_classes=[IsAdmin])
+#     def reject_locksmith(self, request, pk=None):
+#         locksmith = self.get_object()
+#         locksmith.is_verified = False
+#         locksmith.is_approved = False
+#         locksmith.save()
+#         locksmith_data = {
+#             "id": locksmith.id,
+#             "user": {
+#                 "id": locksmith.user.id,
+#                 "username": locksmith.user.username,
+#                 "full_name": locksmith.user.get_full_name(),
+#                 "email": locksmith.user.email
+#             },
+#             "service_area": locksmith.service_area,
+#             "address": locksmith.address,
+#             "contact_number": locksmith.contact_number,
+#             "latitude": locksmith.latitude,
+#             "longitude": locksmith.longitude,
+#             "reputation_score": str(locksmith.reputation_score),  # Convert Decimal to string for JSON
+#             "pcc_file": locksmith.pcc_file.url if locksmith.pcc_file else None,
+#             "license_file": locksmith.license_file.url if locksmith.license_file else None,
+#             "photo": locksmith.photo.url if locksmith.photo else None,
+#             "is_verified": locksmith.is_verified,
+#             "is_approved": locksmith.is_approved,
+#             "created_at": locksmith.created_at.strftime('%Y-%m-%d %H:%M:%S') if hasattr(locksmith, 'created_at') else None,
+#             "updated_at": locksmith.updated_at.strftime('%Y-%m-%d %H:%M:%S') if hasattr(locksmith, 'updated_at') else None
+#         }
 
-        return Response({
-            'status': 'locksmith details rejected',
-            'locksmith_data': locksmith_data
-        })
+#         return Response({
+#             'status': 'locksmith details rejected',
+#             'locksmith_data': locksmith_data
+#         })
 
 
-    @action(detail=True, methods=['get'], permission_classes=[IsAdmin])
-    def verify_locksmith_details(self, request, pk=None):
-        locksmith = self.get_object()
+#     @action(detail=True, methods=['get'], permission_classes=[IsAdmin])
+#     def verify_locksmith_details(self, request, pk=None):
+#         locksmith = self.get_object()
 
-        locksmith_data = {
-            "id": locksmith.id,
-            "user": {
-                "id": locksmith.user.id,
-                "username": locksmith.user.username,
-                "full_name": locksmith.user.get_full_name(),
-                "email": locksmith.user.email
-            },
-            "service_area": locksmith.service_area,
-            "address": locksmith.address,
-            "contact_number": locksmith.contact_number,
-            "latitude": locksmith.latitude,
-            "longitude": locksmith.longitude,
-            "reputation_score": str(locksmith.reputation_score),  # Convert Decimal to string for JSON
-            "pcc_file": locksmith.pcc_file.url if locksmith.pcc_file else None,
-            "license_file": locksmith.license_file.url if locksmith.license_file else None,
-            "photo": locksmith.photo.url if locksmith.photo else None,
-            "is_verified": locksmith.is_verified,
-            "is_approved": locksmith.is_approved,
-            "created_at": locksmith.created_at.strftime('%Y-%m-%d %H:%M:%S') if hasattr(locksmith, 'created_at') else None,
-            "updated_at": locksmith.updated_at.strftime('%Y-%m-%d %H:%M:%S') if hasattr(locksmith, 'updated_at') else None
-        }
+#         locksmith_data = {
+#             "id": locksmith.id,
+#             "user": {
+#                 "id": locksmith.user.id,
+#                 "username": locksmith.user.username,
+#                 "full_name": locksmith.user.get_full_name(),
+#                 "email": locksmith.user.email
+#             },
+#             "service_area": locksmith.service_area,
+#             "address": locksmith.address,
+#             "contact_number": locksmith.contact_number,
+#             "latitude": locksmith.latitude,
+#             "longitude": locksmith.longitude,
+#             "reputation_score": str(locksmith.reputation_score),  # Convert Decimal to string for JSON
+#             "pcc_file": locksmith.pcc_file.url if locksmith.pcc_file else None,
+#             "license_file": locksmith.license_file.url if locksmith.license_file else None,
+#             "photo": locksmith.photo.url if locksmith.photo else None,
+#             "is_verified": locksmith.is_verified,
+#             "is_approved": locksmith.is_approved,
+#             "created_at": locksmith.created_at.strftime('%Y-%m-%d %H:%M:%S') if hasattr(locksmith, 'created_at') else None,
+#             "updated_at": locksmith.updated_at.strftime('%Y-%m-%d %H:%M:%S') if hasattr(locksmith, 'updated_at') else None
+#         }
 
-        return Response(locksmith_data)
+#         return Response(locksmith_data)
 
 
 
@@ -897,3 +897,215 @@ class CustomerServiceRequestViewSet(viewsets.ModelViewSet):
             return Response({"message": f"Service request updated to {new_status}."})
         
         return Response({"error": "Invalid status update."}, status=400)
+    
+    
+    
+    
+    
+    
+    
+# class BookingViewSet(viewsets.ModelViewSet):
+#     queryset = Booking.objects.all()
+#     serializer_class = BookingSerializer
+#     permission_classes = [permissions.IsAuthenticated]
+
+#     def get_queryset(self):
+#         """Filter bookings so locksmiths see only their own bookings"""
+#         user = self.request.user
+#         if hasattr(user, 'locksmith'):  # Ensure the user is a locksmith
+#             return Booking.objects.filter(locksmith_service__locksmith=user.locksmith)
+#         return Booking.objects.filter(customer=user)  # Customers see their bookings
+
+#     def perform_create(self, serializer):
+#         """Customers book a locksmith service"""
+#         serializer.save(customer=self.request.user)
+
+#     @action(detail=True, methods=['post'])
+#     def complete(self, request, pk=None):
+#         """Locksmith marks booking as completed"""
+#         booking = self.get_object()
+#         if booking.locksmith_service.locksmith.user != request.user:
+#             return Response({'error': 'Permission denied'}, status=403)
+#         booking.complete()
+#         return Response({'status': 'Booking completed'})
+
+#     @action(detail=True, methods=['post'])
+#     def cancel(self, request, pk=None):
+#         """Customer cancels the booking"""
+#         booking = self.get_object()
+#         if booking.customer != request.user:
+#             return Response({'error': 'Permission denied'}, status=403)
+#         booking.cancel()
+#         return Response({'status': 'Booking canceled'})
+    
+    
+    
+    
+    
+import stripe
+from django.conf import settings
+from rest_framework.response import Response
+from rest_framework.decorators import api_view
+from .models import Locksmith    
+    
+stripe.api_key = settings.STRIPE_SECRET_KEY  # Use your Stripe Secret Key
+
+class LocksmithViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for managing Locksmiths:
+    - Admin approval/rejection
+    - Stripe Account creation & onboarding
+    - Checking onboarding status
+    """
+    queryset = Locksmith.objects.all()
+    serializer_class = LocksmithSerializer
+    permission_classes = [IsAdminUser]  # Only Admin can manage locksmiths
+
+    # ✅ Verify Locksmith (Admin Only)
+    @action(detail=True, methods=['put'], permission_classes=[IsAdminUser])
+    def verify_locksmith(self, request, pk=None):
+        locksmith = self.get_object()
+        locksmith.is_verified = True
+        locksmith.is_approved = True  # Approve upon verification
+        locksmith.save()
+        return Response({'status': 'Locksmith verified', 'locksmith_data': LocksmithSerializer(locksmith).data})
+
+    # ✅ Reject Locksmith (Admin Only)
+    @action(detail=True, methods=['put'], permission_classes=[IsAdminUser])
+    def reject_locksmith(self, request, pk=None):
+        locksmith = self.get_object()
+        locksmith.is_verified = False
+        locksmith.is_approved = False
+        locksmith.save()
+        return Response({'status': 'Locksmith rejected', 'locksmith_data': LocksmithSerializer(locksmith).data})
+
+    # ✅ View Locksmith Details (Admin Only)
+    @action(detail=True, methods=['get'], permission_classes=[IsAdminUser])
+    def verify_locksmith_details(self, request, pk=None):
+        locksmith = self.get_object()
+        return Response(LocksmithSerializer(locksmith).data)
+
+    # ✅ Create Stripe Express Account for Locksmith
+    @action(detail=True, methods=['post'])
+    def create_stripe_account(self, request, pk=None):
+        locksmith = self.get_object()
+
+        if locksmith.stripe_account_id:
+            return Response({"message": "Stripe account already exists!", "stripe_account_id": locksmith.stripe_account_id})
+
+        # Create a Stripe Express account
+        stripe_account = stripe.Account.create(
+            type="express",
+            country="US",  # Change based on your country
+            email=locksmith.user.email,
+            capabilities={"card_payments": {"requested": True}, "transfers": {"requested": True}},
+        )
+
+        # Save Stripe Account ID
+        locksmith.stripe_account_id = stripe_account.id
+        locksmith.save()
+
+        return Response({"message": "Stripe account created!", "stripe_account_id": stripe_account.id})
+
+    # ✅ Generate Stripe Onboarding Link & Send Email
+    @action(detail=True, methods=['get'])
+    def generate_stripe_onboarding_link(self, request, pk=None):
+        locksmith = self.get_object()
+
+        if not locksmith.stripe_account_id:
+            return Response({"error": "Locksmith does not have a Stripe account."}, status=400)
+
+        account_link = stripe.AccountLink.create(
+            account=locksmith.stripe_account_id,
+            refresh_url="http://localhost:8000/reauth",
+            return_url="http://localhost:8000/dashboard",
+            type="account_onboarding",
+        )
+
+        # Send onboarding link via email
+        send_mail(
+            "Complete Your Stripe Verification",
+            f"Hello {locksmith.user.username},\n\nPlease complete your Stripe account setup by clicking the link below:\n\n{account_link.url}\n\nThanks!",
+            "your_email@example.com",  # Replace with your email
+            [locksmith.user.email],
+            fail_silently=False,
+        )
+
+        return Response({"message": "Onboarding link sent to locksmith's email!", "onboarding_url": account_link.url})
+
+    # ✅ Check Stripe Onboarding Status
+    @action(detail=True, methods=['get'])
+    def check_onboarding_status(self, request, pk=None):
+        locksmith = self.get_object()
+
+        if not locksmith.stripe_account_id:
+            return Response({"error": "Locksmith does not have a Stripe account."}, status=400)
+
+        stripe_account = stripe.Account.retrieve(locksmith.stripe_account_id)
+
+        return Response({
+            "email": stripe_account.email,
+            "payouts_enabled": stripe_account.payouts_enabled,
+            "charges_enabled": stripe_account.charges_enabled,
+            "requirements": stripe_account.requirements,
+        })
+        
+        
+        
+        
+class BookingViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for handling bookings, payments, and refunds.
+    """
+    queryset = Booking.objects.all()
+    serializer_class = BookingSerializer
+
+    @action(detail=True, methods=['post'])
+    def process_payment(self, request, pk=None):
+        """
+        ✅ Process customer payment, deduct commission, and send the remaining amount to the locksmith.
+        """
+        booking = self.get_object()
+        locksmith = booking.locksmith_service.locksmith
+
+        if not locksmith.stripe_account_id:
+            return Response({"error": "Locksmith does not have a Stripe account."}, status=400)
+
+        # Calculate commission (10%)
+        commission_percentage = 10 / 100
+        commission_amount = booking.price * commission_percentage
+        payout_amount = booking.price - commission_amount
+
+        # Create PaymentIntent
+        payment_intent = stripe.PaymentIntent.create(
+            amount=int(booking.price * 100),  # Convert to cents
+            currency="usd",
+            application_fee_amount=int(commission_amount * 100),  # Platform's commission
+            transfer_data={"destination": locksmith.stripe_account_id},  # Send remaining amount to locksmith
+        )
+
+        # Store PaymentIntent ID
+        booking.payment_intent_id = payment_intent.id
+        booking.payment_status = "paid"
+        booking.save()
+
+        return Response({"client_secret": payment_intent.client_secret, "payment_intent_id": payment_intent.id})
+
+    @action(detail=True, methods=['post'])
+    def process_refund(self, request, pk=None):
+        """
+        ✅ Process a refund for a booking.
+        """
+        booking = self.get_object()
+
+        if not booking.payment_intent_id:
+            return Response({"error": "PaymentIntent ID is missing."}, status=400)
+
+        # Process refund
+        refund = stripe.Refund.create(payment_intent=booking.payment_intent_id)
+
+        # Update booking status
+        booking.payment_status = "refunded"
+        booking.save()
+
+        return Response({"message": "Refund successful", "refund_id": refund.id})

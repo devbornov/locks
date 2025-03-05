@@ -5,7 +5,7 @@ import os
 from io import BytesIO
 from django.conf import settings
 from rest_framework import serializers
-from .models import User, Locksmith, Customer, CustomerServiceRequest , CarKeyDetails, Service, Transaction, ServiceRequest, ServiceBid, AdminSettings, PlatformStatistics,LocksmithServices,AdminService
+from .models import User, Locksmith, Customer, CustomerServiceRequest , CarKeyDetails, Service, Transaction, ServiceRequest, ServiceBid, AdminSettings, PlatformStatistics,LocksmithServices,AdminService , Booking
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -150,18 +150,20 @@ class CustomerSerializer(serializers.ModelSerializer):
 
 class LocksmithSerializer(serializers.ModelSerializer):
     user = LocksmithCreateSerializer(read_only=True)  # Read-only user data
-    # services_offered = serializers.PrimaryKeyRelatedField(queryset=Service.objects.all(), many=True)
+    stripe_account_id = serializers.CharField(read_only=True)  # ✅ Add Stripe Account ID
 
     class Meta:
         model = Locksmith
         fields = [
             'id', 'user', 'service_area', 'is_approved',
-            'address', 'contact_number', 'pcc_file', 'license_file', 'photo', 'is_verified'
+            'address', 'contact_number', 'pcc_file', 'license_file',
+            'photo', 'is_verified', 'stripe_account_id'  # ✅ Include Stripe ID
         ]
 
     def validate_service_area(self, value):
         # Validate the service area format if necessary
         return value
+
 
 
 class CarKeyDetailsSerializer(serializers.ModelSerializer):
@@ -181,14 +183,14 @@ class ServiceSerializer(serializers.ModelSerializer):
         
         
         
-class LocksmithServiceSerializer(serializers.ModelSerializer):
-    car_key_details = CarKeyDetailsSerializer(read_only=True)
-    locksmith = LocksmithSerializer(read_only=True)
-    price = serializers.DecimalField(max_digits=10, decimal_places=2)
+# class LocksmithServiceSerializer(serializers.ModelSerializer):
+#     car_key_details = CarKeyDetailsSerializer(read_only=True)
+#     locksmith = LocksmithSerializer(read_only=True)
+#     price = serializers.DecimalField(max_digits=10, decimal_places=2)
 
-    class Meta:
-        model = LocksmithServices
-        fields = ['id', 'locksmith', 'service_type', 'car_key_details', 'price', 'details']
+#     class Meta:
+#         model = LocksmithServices
+#         fields = ['id', 'locksmith', 'service_type', 'car_key_details', 'price', 'details']
 
 
 
@@ -200,10 +202,13 @@ class TransactionSerializer(serializers.ModelSerializer):
     customer = UserSerializer(read_only=True)
     commission = serializers.DecimalField(max_digits=10, decimal_places=2)
     transaction_date = serializers.DateTimeField()
+    payment_intent_id = serializers.CharField(read_only=True)  # ✅ Add Stripe PaymentIntent ID
 
     class Meta:
         model = Transaction
-        fields = ['id', 'service', 'locksmith', 'customer', 'amount', 'commission', 'transaction_date', 'status']
+        fields = ['id', 'service', 'locksmith', 'customer', 'amount', 'commission', 
+                  'transaction_date', 'status', 'payment_intent_id']  # ✅ Include Stripe PaymentIntent
+
 
 class ServiceRequestSerializer(serializers.ModelSerializer):
     customer = UserSerializer(read_only=True)
@@ -337,4 +342,18 @@ class CustomerServiceRequestSerializer(serializers.ModelSerializer):
         fields = ['id', 'customer', 'locksmith', 'service', 'status', 'requested_at']
 
 
-        
+
+
+
+class BookingSerializer(serializers.ModelSerializer):
+    customer = UserSerializer(read_only=True)  # Fetches customer details
+    locksmith_service_type = serializers.SerializerMethodField()
+    payment_intent_id = serializers.CharField(read_only=True)  # ✅ Add Stripe PaymentIntent ID
+
+    class Meta:
+        model = Booking
+        fields = '__all__'
+        read_only_fields = ['customer', 'status', 'locksmith_service_type', 'payment_intent_id']  # ✅ Prevent modification
+
+    def get_locksmith_service_type(self, obj):
+        return obj.locksmith_service.service_type if obj.locksmith_service else None

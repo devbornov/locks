@@ -218,3 +218,17 @@ CORS_ALLOWED_ORIGINS = [
 
 
 CSRF_TRUSTED_ORIGINS = ["http://localhost:3000"]
+
+
+
+
+
+
+import stripe
+
+# Stripe API Keys (Replace with your keys from Stripe Dashboard)
+STRIPE_PUBLISHABLE_KEY = "pk_test_51QzBTNQT2MEMwg5sILBLhsJBtAj6UQhtixuf2vn4cD8yaDq4I0ByskB05hOKdxCDSZ9T7dYyYkI5BKUr2DjoExmt001sW0NvSh"
+STRIPE_SECRET_KEY = "sk_test_51QzBTNQT2MEMwg5sR9ZqzB9uX4e5466rsOsvETfnCg0k9YDKPzZprmKlAgnKWiRgPSDPQlb2jpS3mMGHhZMYU5qO00qGVWUdYE"
+
+# Set up Stripe API key globally
+stripe.api_key = STRIPE_SECRET_KEY
