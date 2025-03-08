@@ -15,6 +15,10 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework import status
 from django.contrib.auth import authenticate
 import pyotp
+from rest_framework import serializers
+from django.core.mail import send_mail
+from decimal import Decimal
+
 
 from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
@@ -424,6 +428,12 @@ class IsCustomer(permissions.BasePermission):
 class IsAdminOrCustomer(permissions.BasePermission):
     def has_permission(self, request, view):
         return request.user.role in ['admin', 'customer']
+    
+    
+    
+class IsAdminOrLocksmith(permissions.BasePermission):
+    def has_permission(self, request, view):
+        return request.user.role in ['admin', 'locksmith']
 
 # Admin Views
 class UserViewSet(viewsets.ModelViewSet):
@@ -555,20 +565,43 @@ class ServiceViewSet(viewsets.ModelViewSet):
         """Automatically assign the logged-in locksmith and calculate total price."""
         user = self.request.user
 
-        try:
-            locksmith = user.locksmith  # Ensure the user is linked to a Locksmith
-            
-            # Save service with locksmith and approved=False
-            service = serializer.save(locksmith=locksmith, approved=False)
-
-            # Calculate total price
-            service.total_price = service.custom_price + service.admin_service.base_price
-            service.save()
-
-        except AttributeError:
+        # Ensure user has an associated Locksmith account
+        if not hasattr(user, "locksmith"):
             raise serializers.ValidationError({"error": "User is not associated with a locksmith account."})
 
+        locksmith = user.locksmith  # Now safe to access
 
+        # Get admin commission settings
+        admin_settings = AdminSettings.objects.first()
+        if not admin_settings:
+            raise serializers.ValidationError({"error": "Admin settings not configured."})
+
+        # Fetch commission settings
+        commission_amount = admin_settings.commission_amount if admin_settings else Decimal("0")
+        percentage = admin_settings.percentage if admin_settings else Decimal("0")
+
+        # Convert custom_price to Decimal
+        custom_price = serializer.validated_data.get("custom_price", 0)
+        custom_price = Decimal(str(custom_price))
+
+        # Calculate percentage amount
+        percentage_amount = (custom_price * percentage) / Decimal("100")
+
+        # **Fix: Ensure correct formula**
+        total_price = custom_price + percentage_amount + commission_amount  # ✅ Correct formula
+
+        # Debugging print statements (Check Logs)
+        print(f"Custom Price: {custom_price}")
+        print(f"Percentage ({percentage}%): {percentage_amount}")
+        print(f"Commission Amount: {commission_amount}")
+        print(f"Total Price Calculated: {total_price}")
+
+        # Save service with calculated total price
+        serializer.save(
+            locksmith=locksmith,
+            total_price=total_price,
+            approved=False
+        )
 
 class TransactionViewSet(viewsets.ModelViewSet):
     queryset = Transaction.objects.all()
@@ -635,79 +668,38 @@ class AdmincomissionViewSet(viewsets.ModelViewSet):
 
     def update(self, request, *args, **kwargs):
         """
-        Update the existing admin percentage or create a new one if none exists.
-        Ensures a single row is maintained in the database.
+        Update the first existing AdminSettings record or create one if none exists.
         """
-        admin_settings = AdminSettings.objects.first()  # Fetch the first record if exists
+        admin_settings = AdminSettings.objects.first()  # Fetch the first record
 
-        if not admin_settings:
-            # Create only if no record exists
-            admin_settings = AdminSettings.objects.create(admin_percentage=request.data.get("admin_percentage", 0))
-            message = "Admin percentage created successfully."
-        else:
+        percentage = request.data.get("percentage")
+        commission_amount = request.data.get("commission_amount")
+
+        if percentage is None or commission_amount is None:
+            return Response({"error": "Both admin_percentage and commission_amount are required."}, 
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        if admin_settings:
             # Update existing record
-            admin_percentage = request.data.get("admin_percentage")
-            if admin_percentage is not None:
-                admin_settings.admin_percentage = admin_percentage
-                admin_settings.save()
-                message = "Admin percentage updated successfully."
-            else:
-                return Response({"error": "Admin percentage is required."}, status=status.HTTP_400_BAD_REQUEST)
+            admin_settings.percentage = percentage
+            admin_settings.commission_amount = commission_amount
+            admin_settings.save()
+            message = "Admin settings updated successfully."
+        else:
+            # Create new record only if none exists
+            admin_settings = AdminSettings.objects.create(
+                percentage=percentage, 
+                commission_amount=commission_amount
+            )
+            message = "Admin settings created successfully."
 
         return Response({
             "message": message,
-            "admin_percentage": admin_settings.admin_percentage
+            "percentage": admin_settings.percentage,
+            "commission_amount": admin_settings.commission_amount
         }, status=status.HTTP_200_OK)
 
 
-
-
-# class LocksmithServiceUpdateViewSet(viewsets.ModelViewSet):
-#     """
-#     ViewSet for updating locksmith services and pricing with admin commission.
-#     Only accessible by Locksmiths.
-#     """
-#     queryset = LocksmithService.objects.all()
-#     serializer_class = LocksmithServiceSerializer
-#     permission_classes = [IsAuthenticated, IsLocksmith]
-
-#     def update(self, request, *args, **kwargs):
-#         """
-#         Update locksmith service price with admin commission (Fixed Amount Model).
-#         """
-#         user = request.user
-#         try:
-#             locksmith = user.locksmith  # Ensure locksmith profile exists
-#         except Locksmith.DoesNotExist:
-#             return Response({"error": "Locksmith profile not found."}, status=status.HTTP_404_NOT_FOUND)
-
-#         # Get the admin fixed commission amount
-#         admin_settings = AdminSettings.objects.first()
-#         if not admin_settings:
-#             return Response({"error": "Admin settings not found."}, status=status.HTTP_404_NOT_FOUND)
-
-#         commission_amount = admin_settings.commission_amount  # Fixed amount
-
-#         services = request.data.get("services", [])
-
-#         for service_data in services:
-#             service_id = service_data.get("id")
-#             base_price = service_data.get("price")
-
-#             try:
-#                 service = Service.objects.get(id=service_id, locksmith=locksmith)
-#                 final_price = base_price + commission_amount  # Fixed amount addition
-
-#                 service.price = final_price
-#                 service.save()
-
-#             except Service.DoesNotExist:
-#                 return Response({"error": f"Service ID {service_id} not found."}, status=status.HTTP_404_NOT_FOUND)
-
-#         return Response({
-#             "message": "Services updated successfully with fixed admin commission.",
-#             "commission_amount": commission_amount
-#         }, status=status.HTTP_200_OK)
 
 
 
@@ -745,94 +737,6 @@ class CustomerDashboardViewSet(viewsets.GenericViewSet):
 
 
 
-
-
-
-# class LocksmithServiceViewSet(viewsets.ModelViewSet):
-#     queryset = LocksmithService.objects.all()
-#     serializer_class = LocksmithServiceSerializer
-#     permission_classes = [IsAuthenticated]
-
-#     def create(self, request, *args, **kwargs):
-#         """
-#         Create a new locksmith service with admin commission included.
-#         """
-#         # Get the authenticated locksmith
-#         user = request.user
-#         try:
-#             locksmith = Locksmith.objects.get(user=user)
-#         except Locksmith.DoesNotExist:
-#             return Response({"error": "Locksmith profile not found."}, status=status.HTTP_404_NOT_FOUND)
-
-#         # Ensure the locksmith is approved before allowing service creation
-#         if not locksmith.is_approved:
-#             return Response({"error": "Locksmith is not approved."}, status=status.HTTP_403_FORBIDDEN)
-
-#         # Extract the necessary data from the request
-#         service_type = request.data.get("service_type")
-#         base_price = request.data.get("price")
-#         details = request.data.get("details", "")
-
-#         # Validate price input
-#         try:
-#             base_price = float(base_price)
-#         except (TypeError, ValueError):
-#             return Response({"error": "Invalid price format."}, status=status.HTTP_400_BAD_REQUEST)
-
-#         # Fetch admin commission amount and ensure it's a float
-#         admin_settings = AdminSettings.objects.first()
-#         commission_amount = admin_settings.commission_amount if admin_settings else 0.00
-#         commission_amount = float(commission_amount)  # Make sure it's a float for calculation
-
-#         # DEBUG: Print commission value and base price for clarity
-#         print(f"Base Price: {base_price}, Commission Amount: {commission_amount}")
-
-#         # Calculate the total price: base price + commission
-#         total_price = base_price + commission_amount  # Ensure commission is added only once
-#         print(f"Total Price (Base Price + Commission): {total_price}")
-
-#         # Check if the locksmith already has a service entry for this service type
-#         service = LocksmithService.objects.filter(locksmith=locksmith, service_type=service_type).first()
-
-#         if service:
-#             # If service exists, update it
-#             service.price = total_price  # Only update the price field (don't add commission again)
-#             service.details = details
-#             service.save()
-#             return Response({
-#                 "message": "Service updated successfully with admin commission.",
-#                 "service_id": service.id,
-#                 "locksmith": locksmith.user.username,
-#                 "service_type": service.service_type,
-#                 "base_price": base_price,
-#                 "admin_commission": commission_amount,
-#                 "total_price": total_price
-#             }, status=status.HTTP_200_OK)
-#         else:
-#             # If no existing service, create a new one
-#             service = LocksmithService.objects.create(
-#                 locksmith=locksmith,
-#                 service_type=service_type,
-#                 price=total_price,  # Store total price (base price + commission)
-#                 details=details
-#             )
-#             return Response({
-#                 "message": "Service created successfully with admin commission.",
-#                 "service_id": service.id,
-#                 "locksmith": locksmith.user.username,
-#                 "service_type": service.service_type,
-#                 "base_price": base_price,
-#                 "admin_commission": commission_amount,
-#                 "total_price": total_price
-#             }, status=status.HTTP_201_CREATED)
-            
-            
-            
-            
-            
-            
-            
-            
             
             
 class CustomerServiceRequestViewSet(viewsets.ModelViewSet):
@@ -985,10 +889,16 @@ class LocksmithViewSet(viewsets.ModelViewSet):
         locksmith = self.get_object()
         return Response(LocksmithSerializer(locksmith).data)
 
+    @action(detail=False, methods=['get'], permission_classes=[IsLocksmith])
+    def locksmithform_val(self, request):
+        locksmith = Locksmith.objects.get(user=request.user)  # Get locksmith linked to the logged-in user
+        return Response(LocksmithSerializer(locksmith).data)
+
+
     # ✅ Create Stripe Express Account for Locksmith
-    @action(detail=True, methods=['post'])
-    def create_stripe_account(self, request, pk=None):
-        locksmith = self.get_object()
+    @action(detail=False, methods=['post'], permission_classes=[IsLocksmith])
+    def create_stripe_account(self, request):
+        locksmith = request.user.locksmith  # Get the locksmith from the logged-in user
 
         if locksmith.stripe_account_id:
             return Response({"message": "Stripe account already exists!", "stripe_account_id": locksmith.stripe_account_id})
@@ -996,7 +906,7 @@ class LocksmithViewSet(viewsets.ModelViewSet):
         # Create a Stripe Express account
         stripe_account = stripe.Account.create(
             type="express",
-            country="US",  # Change based on your country
+            country="AU",  # Change based on your country
             email=locksmith.user.email,
             capabilities={"card_payments": {"requested": True}, "transfers": {"requested": True}},
         )
@@ -1008,9 +918,9 @@ class LocksmithViewSet(viewsets.ModelViewSet):
         return Response({"message": "Stripe account created!", "stripe_account_id": stripe_account.id})
 
     # ✅ Generate Stripe Onboarding Link & Send Email
-    @action(detail=True, methods=['get'])
-    def generate_stripe_onboarding_link(self, request, pk=None):
-        locksmith = self.get_object()
+    @action(detail=False, methods=['get'], permission_classes=[IsLocksmith])
+    def generate_stripe_onboarding_link(self, request):
+        locksmith = request.user.locksmith  # Get the locksmith from the logged-in user
 
         if not locksmith.stripe_account_id:
             return Response({"error": "Locksmith does not have a Stripe account."}, status=400)
@@ -1034,12 +944,12 @@ class LocksmithViewSet(viewsets.ModelViewSet):
         return Response({"message": "Onboarding link sent to locksmith's email!", "onboarding_url": account_link.url})
 
     # ✅ Check Stripe Onboarding Status
-    @action(detail=True, methods=['get'])
-    def check_onboarding_status(self, request, pk=None):
-        locksmith = self.get_object()
+    @action(detail=False, methods=['get'], permission_classes=[IsLocksmith])
+    def check_onboarding_status(self, request):
+        locksmith = request.user.locksmith  # Get the locksmith from the logged-in user
 
         if not locksmith.stripe_account_id:
-            return Response({"error": "Locksmith does not have a Stripe account."}, status=400)
+            return Response({"error": "You do not have a Stripe account."}, status=400)
 
         stripe_account = stripe.Account.retrieve(locksmith.stripe_account_id)
 
@@ -1053,12 +963,69 @@ class LocksmithViewSet(viewsets.ModelViewSet):
         
         
         
+    @action(detail=False, methods=['post'], permission_classes=[IsLocksmith])
+    def mark_open_to_work(self, request):
+        """✅ Locksmith sets themselves as available for new jobs"""
+        locksmith = get_object_or_404(Locksmith, user=request.user)
+
+        locksmith.is_available = True
+        locksmith.save()
+        return Response({"status": "Locksmith is now available for new jobs."})
+
+    @action(detail=False, methods=['post'], permission_classes=[IsLocksmith])
+    def mark_not_available(self, request):
+        """✅ Locksmith marks themselves as unavailable (busy)"""
+        locksmith = get_object_or_404(Locksmith, user=request.user)
+
+        locksmith.is_available = False
+        locksmith.save()
+        return Response({"status": "Locksmith is now unavailable."})
+        
+        
 class BookingViewSet(viewsets.ModelViewSet):
     """
     ViewSet for handling bookings, payments, and refunds.
     """
     queryset = Booking.objects.all()
     serializer_class = BookingSerializer
+    permission_classes = [IsAuthenticated] 
+    
+    def get_queryset(self):
+        """Filter bookings based on logged-in user role."""
+        user = self.request.user  # ✅ Extract user from the token
+
+        if user.role == "customer":
+            return Booking.objects.filter(customer=user)  # Show customer their own bookings
+
+        elif user.role == "locksmith":
+            try:
+                locksmith = Locksmith.objects.get(user=user)  # Get locksmith profile
+                return Booking.objects.filter(locksmith_service__locksmith=locksmith)  # Show only their bookings
+            except Locksmith.DoesNotExist:
+                return Booking.objects.none()  # If no locksmith profile, return empty
+
+        elif user.role == "admin":
+            return Booking.objects.all()  # Admin sees all bookings
+
+        return Booking.objects.none()  # Return empty for unauthorized users
+        
+    # Ensure only authenticated users can create bookings
+
+    def perform_create(self, serializer):
+        """
+        Assign the authenticated user as the customer before saving.
+        """
+        user = self.request.user
+
+        # Check if the authenticated user is a customer
+        if not user.is_authenticated:
+            raise serializers.ValidationError({"error": "User must be authenticated to create a booking."})
+
+        if user.role != "customer":
+            raise serializers.ValidationError({"error": "Only customers can create bookings."})
+
+        # Assign customer to the booking
+        serializer.save(customer=user)
 
     @action(detail=True, methods=['post'])
     def process_payment(self, request, pk=None):
@@ -1076,20 +1043,27 @@ class BookingViewSet(viewsets.ModelViewSet):
         commission_amount = booking.price * commission_percentage
         payout_amount = booking.price - commission_amount
 
-        # Create PaymentIntent
-        payment_intent = stripe.PaymentIntent.create(
-            amount=int(booking.price * 100),  # Convert to cents
-            currency="usd",
-            application_fee_amount=int(commission_amount * 100),  # Platform's commission
-            transfer_data={"destination": locksmith.stripe_account_id},  # Send remaining amount to locksmith
-        )
+        try:
+            # Create PaymentIntent
+            payment_intent = stripe.PaymentIntent.create(
+                amount=int(booking.price * 100),  # Convert to cents
+                currency="usd",
+                application_fee_amount=int(commission_amount * 100),  # Platform's commission
+                transfer_data={"destination": locksmith.stripe_account_id},  # Send remaining amount to locksmith
+            )
 
-        # Store PaymentIntent ID
-        booking.payment_intent_id = payment_intent.id
-        booking.payment_status = "paid"
-        booking.save()
+            # Store PaymentIntent ID
+            booking.payment_intent_id = payment_intent.id
+            booking.payment_status = "paid"
+            booking.save()
 
-        return Response({"client_secret": payment_intent.client_secret, "payment_intent_id": payment_intent.id})
+            return Response({
+                "client_secret": payment_intent.client_secret,
+                "payment_intent_id": payment_intent.id
+            })
+
+        except stripe.error.StripeError as e:
+            return Response({"error": str(e)}, status=400)
 
     @action(detail=True, methods=['post'])
     def process_refund(self, request, pk=None):
@@ -1101,11 +1075,35 @@ class BookingViewSet(viewsets.ModelViewSet):
         if not booking.payment_intent_id:
             return Response({"error": "PaymentIntent ID is missing."}, status=400)
 
-        # Process refund
-        refund = stripe.Refund.create(payment_intent=booking.payment_intent_id)
+        try:
+            # Process refund
+            refund = stripe.Refund.create(payment_intent=booking.payment_intent_id)
 
-        # Update booking status
-        booking.payment_status = "refunded"
-        booking.save()
+            # Update booking status
+            booking.payment_status = "refunded"
+            booking.save()
 
-        return Response({"message": "Refund successful", "refund_id": refund.id})
+            return Response({"message": "Refund successful", "refund_id": refund.id})
+
+        except stripe.error.StripeError as e:
+            return Response({"error": str(e)}, status=400)
+        
+        
+        
+    @action(detail=True, methods=['post'])
+    def complete(self, request, pk=None):
+        """Locksmith marks booking as completed"""
+        booking = self.get_object()
+        if booking.locksmith_service.locksmith.user != request.user:
+            return Response({'error': 'Permission denied'}, status=403)
+        booking.complete()
+        return Response({'status': 'Booking completed'})
+
+    @action(detail=True, methods=['post'])
+    def cancel(self, request, pk=None):
+        """Customer cancels the booking"""
+        booking = self.get_object()
+        if booking.customer != request.user:
+            return Response({'error': 'Permission denied'}, status=403)
+        booking.cancel()
+        return Response({'status': 'Booking canceled'})

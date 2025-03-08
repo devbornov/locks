@@ -232,3 +232,15 @@ STRIPE_SECRET_KEY = "sk_test_51QzBTNQT2MEMwg5sR9ZqzB9uX4e5466rsOsvETfnCg0k9YDKPz
 
 # Set up Stripe API key globally
 stripe.api_key = STRIPE_SECRET_KEY
+
+
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
+
+
+
+
+
+TWILIO_ACCOUNT_SID = "ACba1e3f20eb7083c73471a9e87c04802c"
+TWILIO_AUTH_TOKEN = "e914e5c030f8026ec1a3fe2ad6a6c813"
+TWILIO_PHONE_NUMBER = "+1234567890"  # Your Twilio number

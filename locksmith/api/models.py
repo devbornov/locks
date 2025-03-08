@@ -30,11 +30,12 @@ class User(AbstractUser):
 
 # Admin Settings Model (For Commission & Platform Settings)  
 class AdminSettings(models.Model):
-    commission_amount = models.DecimalField(max_digits=5, decimal_places=2, default=14.00)  # Example: 10%
+    commission_amount = models.DecimalField(max_digits=10, decimal_places=2, default=40.00)  # Fixed commission amount
+    percentage = models.DecimalField(max_digits=5, decimal_places=2, default=10.00)  # Percentage value
     platform_status = models.CharField(max_length=20, choices=[('active', 'Active'), ('inactive', 'Inactive')], default='active')
 
     def __str__(self):
-        return f"Platform Settings - Commission: {self.commission_percentage}% | Status: {self.platform_status}"
+        return f"Commission: {self.commission_amount} | Percentage: {self.percentage}% | Status: {self.platform_status}"
 
     class Meta:
         verbose_name = 'Admin Settings'
@@ -68,6 +69,7 @@ class Locksmith(models.Model):
     license_file = models.FileField(upload_to='locksmiths/license/', blank=True, null=True)
     photo = models.ImageField(upload_to='locksmiths/photos/', blank=True, null=True)
     is_verified = models.BooleanField(default=False)
+    is_available = models.BooleanField(default=True , blank=True, null=True)
 
     def __str__(self):
         return f"{self.user.username} - {self.service_area}"
@@ -133,14 +135,8 @@ class LocksmithServices(models.Model):
     service_type = models.CharField(
         max_length=20,
         choices=SERVICE_TYPES,
-        default='residential'  # Set a default value to prevent migration issues
+        default='residential'
     )
-
-    def save(self, *args, **kwargs):
-        """Ensure total_price is always updated as custom_price + base_price."""
-        if self.custom_price is not None and self.admin_service is not None:
-            self.total_price = self.custom_price + self.admin_service.base_price
-        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.admin_service.name} - {self.locksmith.user.username} ({self.service_type})"

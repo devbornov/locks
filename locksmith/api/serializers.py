@@ -3,6 +3,7 @@ import qrcode
 import base64
 import os
 from io import BytesIO
+from decimal import Decimal
 from django.conf import settings
 from rest_framework import serializers
 from .models import User, Locksmith, Customer, CustomerServiceRequest , CarKeyDetails, Service, Transaction, ServiceRequest, ServiceBid, AdminSettings, PlatformStatistics,LocksmithServices,AdminService , Booking
@@ -157,7 +158,7 @@ class LocksmithSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'user', 'service_area', 'is_approved',
             'address', 'contact_number', 'pcc_file', 'license_file',
-            'photo', 'is_verified', 'stripe_account_id'  # ✅ Include Stripe ID
+            'photo', 'is_verified', 'stripe_account_id' ,'is_available' # ✅ Include Stripe ID
         ]
 
     def validate_service_area(self, value):
@@ -243,12 +244,12 @@ class ServiceBidSerializer(serializers.ModelSerializer):
         return value
 
 class AdminSettingsSerializer(serializers.ModelSerializer):
-    commission_amount = serializers.DecimalField(max_digits=5, decimal_places=2)
-    platform_status = serializers.BooleanField(default=True)
+    commission_amount = serializers.DecimalField(max_digits=10, decimal_places=2)
+    percentage = serializers.DecimalField(max_digits=5, decimal_places=2)
 
     class Meta:
         model = AdminSettings
-        fields = ['commission_amount', 'platform_status']
+        fields = ['commission_amount', 'percentage', 'platform_status']
 
     def update_commission(self, instance, validated_data):
         # Logic to update platform settings such as commission percentage
@@ -277,36 +278,40 @@ class LocksmithServiceSerializer(serializers.ModelSerializer):
         source='admin_service'
     )
     admin_service_name = serializers.SerializerMethodField()
-    locksmith_name = serializers.SerializerMethodField()  # New field for locksmith's name
+    locksmith_name = serializers.SerializerMethodField()
+    is_available = serializers.SerializerMethodField()
 
     class Meta:
         model = LocksmithServices
-        fields = ['id', 'locksmith_name', 'admin_service_id', 'admin_service_name', 'service_type', 'custom_price', 'total_price', 'details', 'approved']
+        fields = [
+            'id', 'locksmith_name', 'is_available', 'admin_service_id',
+            'admin_service_name', 'service_type', 'custom_price',
+            'total_price', 'details', 'approved'
+        ]
         read_only_fields = ['total_price']
 
     def get_admin_service_name(self, obj):
         return obj.admin_service.name if obj.admin_service else None
 
     def get_locksmith_name(self, obj):
-        """Retrieve the associated locksmith's username."""
         return obj.locksmith.user.username if obj.locksmith else None
+    
+    def get_is_available(self, obj):
+        return obj.locksmith.is_available
 
-    def create(self, validated_data):
-        """Assign locksmith based on logged-in user."""
-        request = self.context.get('request')
-        if not request or not request.user.is_authenticated:
-            raise serializers.ValidationError({"error": "User must be authenticated."})
+    # def to_representation(self, instance):
+    #     data = super().to_representation(instance)
 
-        try:
-            locksmith = request.user.locksmith  # Get locksmith instance from authenticated user
-        except AttributeError:
-            raise serializers.ValidationError({"error": "User is not associated with a locksmith account."})
+    #     # Recalculate total_price to ensure correctness
+    #     percentage_amount = (Decimal(instance.custom_price) * Decimal(10)) / Decimal(100)
+    #     data['total_price'] = str(Decimal(instance.custom_price) + percentage_amount + Decimal(40))  # Update to match expected
 
-        validated_data['locksmith'] = locksmith  # Assign locksmith automatically
-        return super().create(validated_data)
+    #     return data
 
-    def get_total_cost(self, obj):
-        return obj.total_cost()
+
+
+
+
 
 
 class AdminServiceSerializer(serializers.ModelSerializer):
