@@ -141,14 +141,24 @@ WSGI_APPLICATION = 'locksmith.wsgi.application'
 #         'NAME': BASE_DIR / 'db.sqlite3',
 #     }
 # }
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.mysql',
+#         'NAME': 'locksmith1',
+#         'USER': 'root',
+#         'PASSWORD': 'root',
+#         'HOST': 'localhost',  # This matches the name of the db service in docker-compose.yml
+#         'PORT': '3308',
+#     }
+# }
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'locksmith1',
         'USER': 'root',
-        'PASSWORD': 'root',
-        'HOST': 'localhost',  # This matches the name of the db service in docker-compose.yml
-        'PORT': '3308',
+        'PASSWORD': 'Db@2025#Lockquick',
+        'HOST': '3.25.117.199',  # Change for RDS
+        'PORT': '3306',  # Default MySQL port
     }
 }
 
