@@ -46,10 +46,13 @@ class AdminSettings(models.Model):
 class Customer(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='customer_profile')
     address = models.TextField(blank=True, null=True)
-    contact_number = models.CharField(max_length=15, blank=True, null=True, default="")  # Optional
+    contact_number = models.CharField(max_length=15, blank=True, null=True, default="")  
+    latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)  # ✅ Added Latitude
+    longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)  # ✅ Added Longitude
 
     def __str__(self):
         return f"{self.user.username} - Customer"
+
 
 
 
@@ -258,6 +261,13 @@ class Booking(models.Model):
         max_length=20, choices=[('Scheduled', 'Scheduled'), ('Completed', 'Completed'), ('Cancelled', 'Cancelled')], default='Scheduled'
     )
     payment_intent_id = models.CharField(max_length=255, blank=True, null=True)  # ✅ Store Stripe PaymentIntent ID
+    stripe_session_id = models.CharField(max_length=255, blank=True, null=True)  # ✅ Store Stripe Session ID
+    payment_status = models.CharField(max_length=20, choices=[
+        ("pending", "Pending"),
+        ("paid", "Paid"),
+        ("refunded", "Refunded"),
+        ("canceled", "Canceled")
+    ], default="pending")  # ✅ Store Payment Status
 
     def complete(self):
         self.status = 'Completed'

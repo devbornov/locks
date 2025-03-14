@@ -18,8 +18,11 @@ import pyotp
 from rest_framework import serializers
 from django.core.mail import send_mail
 from decimal import Decimal
-
-
+from django.db import connection
+from django.db.models import FloatField, F
+from django.db.models.expressions import RawSQL
+from math import radians
+from django.http import JsonResponse
 from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
@@ -27,6 +30,11 @@ from django.contrib.gis.geos import Point
 from django.contrib.gis.db.models.functions import Distance
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
+from geopy.distance import geodesic
+from django.views.decorators.csrf import csrf_exempt
+import json
+from django.http import HttpResponse
+
 
 
 
@@ -52,7 +60,15 @@ class UserRegisterView(APIView):
             user = serializer.save()
             refresh = RefreshToken.for_user(user)
 
-            totp_details = serializer.get_totp_details(user)  # Pass user instance
+            totp_details = serializer.get_totp_details(user)
+
+            # ✅ Get Latitude & Longitude from Request (Optional)
+            latitude = request.data.get('latitude', None)
+            longitude = request.data.get('longitude', None)
+
+            # ✅ Only create a Customer profile if the user is a 'customer'
+            if user.role == "customer":
+                Customer.objects.create(user=user, latitude=latitude, longitude=longitude)
 
             return Response({
                 'message': 'User registered successfully',
@@ -62,15 +78,43 @@ class UserRegisterView(APIView):
                     'email': user.email,
                     'role': user.role,
                     'totp_enabled': user.totp_enabled,
-                    'totp_secret': totp_details["totp_secret"],  # TOTP Key in Response
-                    'totp_qr_code': totp_details["totp_qr_code"],  # Base64 QR Code
-                    'totp_qr_code_url': totp_details["qr_code_url"],  # QR Image URL
+                    'totp_secret': totp_details["totp_secret"],
+                    'totp_qr_code': totp_details["totp_qr_code"],
+                    'totp_qr_code_url': totp_details["qr_code_url"],
                 },
                 'access': str(refresh.access_token),
                 'refresh': str(refresh)
             }, status=status.HTTP_201_CREATED)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    
+    
+    
+class CustomerProfileViewSet(viewsets.ModelViewSet):
+    serializer_class = CustomerSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        # ✅ Ensures only the logged-in customer can access their own profile
+        return Customer.objects.filter(user=self.request.user)
+
+    def get_object(self):
+        # ✅ Returns the logged-in customer's profile
+        return self.request.user.customer_profile
+
+    def update(self, request, *args, **kwargs):
+        """Update the logged-in customer's profile"""
+        customer = self.get_object()
+        serializer = self.get_serializer(customer, data=request.data, partial=True)
+
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"message": "Profile updated successfully", "customer": serializer.data}, status=status.HTTP_200_OK)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    
 
 # class LocksmithRegisterView(APIView):
 #     permission_classes = [AllowAny]
@@ -422,7 +466,7 @@ class IsLocksmith(permissions.BasePermission):
 
 class IsCustomer(permissions.BasePermission):
     def has_permission(self, request, view):
-        return request.user.role == 'customer'  # Adjust role check for customers
+        return request.user.is_authenticated and getattr(request.user, 'role', None) == 'customer'  # Adjust role check for customers
     
     
 class IsAdminOrCustomer(permissions.BasePermission):
@@ -506,17 +550,46 @@ class AdminLocksmithServiceViewSet(viewsets.ModelViewSet):
     
     @action(detail=False, methods=['get'],permission_classes=[IsCustomer])
     def services_to_customer(self, request):
-        """Get all approved services, optionally filtered by service type."""
-        service_type = request.query_params.get('service_type', None)  # Get service type from request
+            """Get all approved locksmith services, optionally filtered by service type and sorted by distance."""
+            
+            latitude = request.query_params.get('latitude')
+            longitude = request.query_params.get('longitude')
+            service_type = request.query_params.get('service_type', None)
 
-        approved_services = LocksmithServices.objects.filter(approved=True)
+            if not latitude or not longitude:
+                return Response({"error": "Latitude and Longitude are required"}, status=400)
 
-        # Apply filtering if service_type is provided
-        if service_type:
-            approved_services = approved_services.filter(service_type=service_type)
+            latitude, longitude = float(latitude), float(longitude)
 
-        serializer = LocksmithServiceSerializer(approved_services, many=True)
-        return Response(serializer.data)
+            # Filter only approved services
+            approved_services = LocksmithServices.objects.filter(approved=True)
+
+            # Apply filtering if service_type is provided
+            if service_type:
+                approved_services = approved_services.filter(service_type=service_type)
+
+            # Calculate distance for each locksmith and filter accordingly
+            locksmith_services_with_distance = []
+            
+            for service in approved_services:
+                locksmith = service.locksmith  # Assuming `locksmith` is a ForeignKey in `LocksmithServices`
+                locksmith_location = (locksmith.latitude, locksmith.longitude)
+                customer_location = (latitude, longitude)
+                distance_km = geodesic(customer_location, locksmith_location).km
+
+                locksmith_services_with_distance.append({
+                    "locksmith": locksmith.user.username,
+                    "latitude": locksmith.latitude,
+                    "longitude": locksmith.longitude,
+                    "distance_km": round(distance_km, 2),
+                    "service": LocksmithServiceSerializer(service).data
+                })
+
+            # Sort by nearest distance
+            locksmith_services_with_distance.sort(key=lambda x: x["distance_km"])
+
+            return Response(locksmith_services_with_distance)
+
     
     
     @action(detail=False, methods=['get'], permission_classes=[permissions.IsAuthenticated])
@@ -984,7 +1057,7 @@ class LocksmithViewSet(viewsets.ModelViewSet):
         
 class BookingViewSet(viewsets.ModelViewSet):
     """
-    ViewSet for handling bookings, payments, and refunds.
+    ViewSet for handling bookings, payments, refunds, and status updates.
     """
     queryset = Booking.objects.all()
     serializer_class = BookingSerializer
@@ -992,83 +1065,143 @@ class BookingViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         """Filter bookings based on logged-in user role."""
-        user = self.request.user  # ✅ Extract user from the token
+        user = self.request.user  
 
         if user.role == "customer":
-            return Booking.objects.filter(customer=user)  # Show customer their own bookings
+            return Booking.objects.filter(customer=user)
 
         elif user.role == "locksmith":
             try:
-                locksmith = Locksmith.objects.get(user=user)  # Get locksmith profile
-                return Booking.objects.filter(locksmith_service__locksmith=locksmith)  # Show only their bookings
+                locksmith = Locksmith.objects.get(user=user)  
+                return Booking.objects.filter(locksmith_service__locksmith=locksmith)  
             except Locksmith.DoesNotExist:
-                return Booking.objects.none()  # If no locksmith profile, return empty
+                return Booking.objects.none()  
 
         elif user.role == "admin":
-            return Booking.objects.all()  # Admin sees all bookings
+            return Booking.objects.all()  
 
-        return Booking.objects.none()  # Return empty for unauthorized users
+        return Booking.objects.none() 
         
-    # Ensure only authenticated users can create bookings
-
     def perform_create(self, serializer):
         """
         Assign the authenticated user as the customer before saving.
         """
         user = self.request.user
 
-        # Check if the authenticated user is a customer
         if not user.is_authenticated:
             raise serializers.ValidationError({"error": "User must be authenticated to create a booking."})
 
         if user.role != "customer":
             raise serializers.ValidationError({"error": "Only customers can create bookings."})
 
-        # Assign customer to the booking
         serializer.save(customer=user)
 
     @action(detail=True, methods=['post'])
     def process_payment(self, request, pk=None):
-        """
-        ✅ Process customer payment, deduct commission, and send the remaining amount to the locksmith.
-        """
         booking = self.get_object()
-        locksmith = booking.locksmith_service.locksmith
-
-        if not locksmith.stripe_account_id:
-            return Response({"error": "Locksmith does not have a Stripe account."}, status=400)
-
-        # Calculate commission (10%)
-        commission_percentage = 10 / 100
-        commission_amount = booking.price * commission_percentage
-        payout_amount = booking.price - commission_amount
+        locksmith_service = booking.locksmith_service  
+        total_price = locksmith_service.total_price  
 
         try:
-            # Create PaymentIntent
-            payment_intent = stripe.PaymentIntent.create(
-                amount=int(booking.price * 100),  # Convert to cents
-                currency="usd",
-                application_fee_amount=int(commission_amount * 100),  # Platform's commission
-                transfer_data={"destination": locksmith.stripe_account_id},  # Send remaining amount to locksmith
+            checkout_session = stripe.checkout.Session.create(
+                payment_method_types=["card", "afterpay_clearpay", "klarna", "zip"],
+                line_items=[{
+                    'price_data': {
+                        'currency': 'aud',
+                        'product_data': {'name': locksmith_service.admin_service.name},
+                        'unit_amount': int(total_price * 100),  # Convert to cents
+                    },
+                    'quantity': 1,
+                }],
+                mode='payment',
+                success_url="https://yourwebsite.com/payment-success?session_id={CHECKOUT_SESSION_ID}",
+                cancel_url="https://yourwebsite.com/payment-cancel",
             )
 
-            # Store PaymentIntent ID
-            booking.payment_intent_id = payment_intent.id
-            booking.payment_status = "paid"
+            # 🔹 Save Stripe Session ID in Booking
+            booking.stripe_session_id = checkout_session.id
+            booking.payment_status = "pending"
             booking.save()
 
-            return Response({
-                "client_secret": payment_intent.client_secret,
-                "payment_intent_id": payment_intent.id
-            })
+            print(f"✅ Saved Booking {booking.id} with Stripe Session ID: {checkout_session.id}")
+
+            return Response({'checkout_url': checkout_session.url})
 
         except stripe.error.StripeError as e:
             return Response({"error": str(e)}, status=400)
+        
+
+    @action(detail=True, methods=['post'])
+    def complete(self, request, pk=None):
+        """Locksmith marks booking as completed and receives payment"""
+        booking = self.get_object()
+
+        # ✅ Ensure booking is scheduled
+        if booking.status != "Scheduled":
+            return Response({'error': 'Booking is not in a valid state to be completed'}, status=400)
+
+        # ✅ Ensure payment exists
+        if not booking.payment_intent_id:
+            return Response({'error': 'No PaymentIntent ID found. Ensure payment is completed.'}, status=400)
+
+        # ✅ Ensure locksmith is correct
+        locksmith = booking.locksmith_service.locksmith
+        if locksmith.user != request.user:
+            return Response({'error': 'Permission denied'}, status=403)
+
+        # ✅ Ensure locksmith has Stripe account
+        if not locksmith.stripe_account_id:
+            return Response({'error': 'Locksmith does not have a Stripe account'}, status=400)
+
+        try:
+            # ✅ Retrieve PaymentIntent
+            payment_intent = stripe.PaymentIntent.retrieve(booking.payment_intent_id)
+
+            # ✅ If payment is already captured, transfer funds
+            if payment_intent.status == "succeeded":
+                total_price = booking.locksmith_service.total_price
+                custom_price = booking.locksmith_service.custom_price
+
+                # ✅ Deduction Calculation
+                deduct_amount = total_price - custom_price
+                transfer_amount = custom_price  # Only sending locksmith's custom price
+
+                # ✅ Convert to cents
+                transfer_amount_cents = int(transfer_amount * 100)
+
+                # ✅ Transfer money to locksmith
+                transfer = stripe.Transfer.create(
+                    amount=transfer_amount_cents,
+                    currency="usd",
+                    destination=locksmith.stripe_account_id,
+                    transfer_group=f"booking_{booking.id}"
+                )
+
+                # ✅ Mark booking as completed
+                booking.status = "Completed"
+                booking.payment_status = "paid"
+                booking.save()
+
+                return Response({
+                    'status': 'Booking completed and payment transferred to locksmith',
+                    'transfer_amount': transfer_amount,
+                    'deducted_amount': deduct_amount
+                })
+                
+
+            else:
+                return Response({'error': f'Invalid PaymentIntent status: {payment_intent.status}'}, status=400)
+
+        except stripe.error.StripeError as e:
+            return Response({'error': str(e)}, status=400)
+
+
+
 
     @action(detail=True, methods=['post'])
     def process_refund(self, request, pk=None):
         """
-        ✅ Process a refund for a booking.
+        ✅ Refund customer payment.
         """
         booking = self.get_object()
 
@@ -1076,10 +1209,8 @@ class BookingViewSet(viewsets.ModelViewSet):
             return Response({"error": "PaymentIntent ID is missing."}, status=400)
 
         try:
-            # Process refund
             refund = stripe.Refund.create(payment_intent=booking.payment_intent_id)
 
-            # Update booking status
             booking.payment_status = "refunded"
             booking.save()
 
@@ -1087,23 +1218,88 @@ class BookingViewSet(viewsets.ModelViewSet):
 
         except stripe.error.StripeError as e:
             return Response({"error": str(e)}, status=400)
-        
-        
-        
-    @action(detail=True, methods=['post'])
-    def complete(self, request, pk=None):
-        """Locksmith marks booking as completed"""
-        booking = self.get_object()
-        if booking.locksmith_service.locksmith.user != request.user:
-            return Response({'error': 'Permission denied'}, status=403)
-        booking.complete()
-        return Response({'status': 'Booking completed'})
 
     @action(detail=True, methods=['post'])
     def cancel(self, request, pk=None):
-        """Customer cancels the booking"""
+        """
+        ✅ Customer cancels the booking.
+        """
         booking = self.get_object()
         if booking.customer != request.user:
             return Response({'error': 'Permission denied'}, status=403)
-        booking.cancel()
+        
+        if booking.payment_status == "pending":
+            try:
+                # ✅ Cancel Stripe Payment Intent if funds are held
+                stripe.PaymentIntent.cancel(booking.payment_intent_id)
+            except stripe.error.StripeError:
+                return Response({'error': 'Failed to cancel payment'}, status=400)
+
+        booking.payment_status = "canceled"
+        booking.save()
         return Response({'status': 'Booking canceled'})
+
+    @action(detail=False, methods=['get'])
+    def my_bookings(self, request):
+        """
+        ✅ List bookings for the authenticated user.
+        """
+        user = request.user
+        if user.role == "customer":
+            bookings = Booking.objects.filter(customer=user)
+        elif user.role == "locksmith":
+            try:
+                locksmith = Locksmith.objects.get(user=user)
+                bookings = Booking.objects.filter(locksmith_service__locksmith=locksmith)
+            except Locksmith.DoesNotExist:
+                return Response({"error": "No locksmith profile found"}, status=400)
+        elif user.role == "admin":
+            bookings = Booking.objects.all()
+        else:
+            return Response({"error": "Unauthorized"}, status=403)
+
+        serializer = self.get_serializer(bookings, many=True)
+        return Response(serializer.data)
+    
+    
+    
+STRIPE_WEBHOOK_SECRET = settings.STRIPE_WEBHOOK_SECRET  
+
+@csrf_exempt
+def stripe_webhook(request):
+    print("\n🔹 Webhook Received!")  # ✅ Log that webhook is received
+
+    payload = request.body
+    sig_header = request.headers.get("Stripe-Signature", None)
+
+    try:
+        # ✅ Verify Stripe Signature
+        event = stripe.Webhook.construct_event(payload, sig_header, STRIPE_WEBHOOK_SECRET)
+        print(f"\n🔹 Full Webhook Event:\n{json.dumps(event, indent=2)}")  # ✅ Log full event
+    except ValueError as e:
+        print(f"\n❌ Invalid Payload: {str(e)}")
+        return JsonResponse({"error": "Invalid payload"}, status=400)
+    except stripe.error.SignatureVerificationError as e:
+        print(f"\n❌ Invalid Signature: {str(e)}")
+        return JsonResponse({"error": "Invalid signature"}, status=400)
+
+    # ✅ Process "checkout.session.completed" Event
+    if event["type"] == "checkout.session.completed":
+        session = event["data"]["object"]
+        stripe_session_id = session.get("id")  # ✅ Get Stripe Session ID
+        payment_intent_id = session.get("payment_intent")
+
+        print(f"\n🔹 Processing PaymentIntent ID: {payment_intent_id}")
+
+        # ✅ Find and Update Booking using Stripe Session ID
+        booking = Booking.objects.filter(stripe_session_id=stripe_session_id).first()
+
+        if booking:
+            booking.payment_intent_id = payment_intent_id  # ✅ Save Payment Intent ID
+            booking.payment_status = "paid"  # ✅ Mark as Paid
+            booking.save()
+            print(f"\n✅ Updated Booking {booking.id} with PaymentIntent ID: {payment_intent_id}")
+        else:
+            print("\n❌ No matching booking found for this payment!")
+
+    return HttpResponse(status=200)

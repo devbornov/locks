@@ -147,7 +147,8 @@ class CustomerSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Customer
-        fields = ['id', 'user', 'address', 'contact_number']
+        fields = ['id', 'user', 'address', 'contact_number', 'latitude', 'longitude']  # ✅ Added Lat & Long
+
 
 class LocksmithSerializer(serializers.ModelSerializer):
     user = LocksmithCreateSerializer(read_only=True)  # Read-only user data
@@ -157,13 +158,14 @@ class LocksmithSerializer(serializers.ModelSerializer):
         model = Locksmith
         fields = [
             'id', 'user', 'service_area', 'is_approved',
-            'address', 'contact_number', 'pcc_file', 'license_file',
-            'photo', 'is_verified', 'stripe_account_id' ,'is_available' # ✅ Include Stripe ID
+            'address', 'contact_number', 'latitude', 'longitude',  # ✅ Add these for location-based queries
+            'pcc_file', 'license_file', 'photo', 'is_verified', 'stripe_account_id', 'is_available'
         ]
 
     def validate_service_area(self, value):
         # Validate the service area format if necessary
         return value
+
 
 
 
@@ -298,15 +300,6 @@ class LocksmithServiceSerializer(serializers.ModelSerializer):
     
     def get_is_available(self, obj):
         return obj.locksmith.is_available
-
-    # def to_representation(self, instance):
-    #     data = super().to_representation(instance)
-
-    #     # Recalculate total_price to ensure correctness
-    #     percentage_amount = (Decimal(instance.custom_price) * Decimal(10)) / Decimal(100)
-    #     data['total_price'] = str(Decimal(instance.custom_price) + percentage_amount + Decimal(40))  # Update to match expected
-
-    #     return data
 
 
 

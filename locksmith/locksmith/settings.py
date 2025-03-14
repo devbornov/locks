@@ -241,6 +241,7 @@ EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
 
 
-TWILIO_ACCOUNT_SID = "ACba1e3f20eb7083c73471a9e87c04802c"
-TWILIO_AUTH_TOKEN = "e914e5c030f8026ec1a3fe2ad6a6c813"
-TWILIO_PHONE_NUMBER = "+1234567890"  # Your Twilio number
+
+
+
+STRIPE_WEBHOOK_SECRET = "whsec_qJVrp6qPW6McXqaszANb5YVJG6NrJz2w"
