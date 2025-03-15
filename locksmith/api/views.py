@@ -384,130 +384,130 @@ class Approvalverification(viewsets.ModelViewSet):
 
 
 
-# class LoginView(APIView):
-#     permission_classes = [AllowAny]
-
-#     def post(self, request):
-#         username = request.data.get('username')
-#         password = request.data.get('password')
-#         otp_code = request.data.get('otp_code', None)  # OTP input from user
-
-#         user = authenticate(username=username, password=password)
-#         if user is not None:
-#             # If TOTP is enabled, verify the OTP before allowing login
-#             if user.totp_secret:
-#                 if not otp_code or not user.verify_totp(otp_code, valid_window=1):
-#                     return Response({'error': 'Invalid OTP'}, status=status.HTTP_401_UNAUTHORIZED)
-
-#             # Check if the user is a locksmith
-#             locksmith = None
-#             try:
-#                 locksmith = Locksmith.objects.get(user=user)
-                
-#                 refresh = RefreshToken.for_user(user)
-#                 # If the locksmith exists, check verification and approval status
-#                 if not locksmith.is_verified:
-#                     return Response({
-#                         'message': 'Login successful',
-#                         'error': 'Your account is pending verification',
-#                         'user_id': user.id,
-#                         'username': user.username,
-#                         'role': user.role,
-#                         'is_locksmith': True,
-#                         'is_verified': False,
-#                         'is_approved': locksmith.is_approved,
-#                         'access': str(refresh.access_token),
-#                         'refresh': str(refresh)
-#                     }, status=status.HTTP_200_OK)
-
-#                 if not locksmith.is_approved:
-#                     return Response({
-#                         'message': 'Login successful',
-#                         'error': 'Your account has been rejected',
-#                         'user_id': user.id,
-#                         'username': user.username,
-#                         'role': user.role,
-#                         'is_locksmith': True,
-#                         'is_verified': locksmith.is_verified,
-#                         'is_approved': False,
-#                         'access': str(refresh.access_token),
-#                         'refresh': str(refresh)
-#                     }, status=status.HTTP_200_OK)
-
-#             except Locksmith.DoesNotExist:
-#                 pass  # User is not a locksmith
-
-#             # Generate authentication tokens
-#             refresh = RefreshToken.for_user(user)
-
-#             return Response({
-#                 'message': 'Login successful',
-#                 'user_id': user.id,
-#                 'username': user.username,
-#                 'role': user.role,
-#                 'is_locksmith': True if locksmith else False,
-#                 'is_verified': locksmith.is_verified if locksmith else None,
-#                 'is_approved': locksmith.is_approved if locksmith else None,
-#                 'access': str(refresh.access_token),
-#                 'refresh': str(refresh)
-#             }, status=status.HTTP_200_OK)
-
-#         return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
-
 class LoginView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
         username = request.data.get('username')
         password = request.data.get('password')
-        otp_code = request.data.get('otp_code', None)
+        otp_code = request.data.get('otp_code', None)  # OTP input from user
 
         user = authenticate(username=username, password=password)
         if user is not None:
-            # Verify OTP if TOTP is enabled
-            if user.totp_secret and (not otp_code or not user.verify_totp(otp_code, valid_window=1)):
-                return Response({'error': 'Invalid OTP'}, status=status.HTTP_401_UNAUTHORIZED)
+            # If TOTP is enabled, verify the OTP before allowing login
+            if user.totp_secret:
+                if not otp_code or not user.verify_totp(otp_code, valid_window=1):
+                    return Response({'error': 'Invalid OTP'}, status=status.HTTP_401_UNAUTHORIZED)
 
-            refresh = RefreshToken.for_user(user)
-
-            # Check user role
-            if user.role == 'admin':
-                return Response({
-                    'message': 'Admin login successful',
-                    'user_id': user.id,
-                    'username': user.username,
-                    'role': user.role,
-                    'access': str(refresh.access_token),
-                    'refresh': str(refresh)
-                }, status=status.HTTP_200_OK)
-
-            elif user.role == 'locksmith':
-                try:
-                    locksmith = Locksmith.objects.get(user=user)
+            # Check if the user is a locksmith
+            locksmith = None
+            try:
+                locksmith = Locksmith.objects.get(user=user)
+                
+                refresh = RefreshToken.for_user(user)
+                # If the locksmith exists, check verification and approval status
+                if not locksmith.is_verified:
                     return Response({
                         'message': 'Login successful',
+                        'error': 'Your account is pending verification',
                         'user_id': user.id,
                         'username': user.username,
                         'role': user.role,
-                        'is_verified': locksmith.is_verified,
+                        'is_locksmith': True,
+                        'is_verified': False,
                         'is_approved': locksmith.is_approved,
                         'access': str(refresh.access_token),
                         'refresh': str(refresh)
                     }, status=status.HTTP_200_OK)
-                except Locksmith.DoesNotExist:
-                    return Response({'error': 'Locksmith record not found'}, status=status.HTTP_401_UNAUTHORIZED)
 
-            elif user.role == 'customer':
-                return Response({
-                    'message': 'Customer login successful',
-                    'user_id': user.id,
-                    'username': user.username,
-                    'role': user.role,
-                    'access': str(refresh.access_token),
-                    'refresh': str(refresh)
-                }, status=status.HTTP_200_OK)
+                if not locksmith.is_approved:
+                    return Response({
+                        'message': 'Login successful',
+                        'error': 'Your account has been rejected',
+                        'user_id': user.id,
+                        'username': user.username,
+                        'role': user.role,
+                        'is_locksmith': True,
+                        'is_verified': locksmith.is_verified,
+                        'is_approved': False,
+                        'access': str(refresh.access_token),
+                        'refresh': str(refresh)
+                    }, status=status.HTTP_200_OK)
+
+            except Locksmith.DoesNotExist:
+                pass  # User is not a locksmith
+
+            # Generate authentication tokens
+            refresh = RefreshToken.for_user(user)
+
+            return Response({
+                'message': 'Login successful',
+                'user_id': user.id,
+                'username': user.username,
+                'role': user.role,
+                'is_locksmith': True if locksmith else False,
+                'is_verified': locksmith.is_verified if locksmith else None,
+                'is_approved': locksmith.is_approved if locksmith else None,
+                'access': str(refresh.access_token),
+                'refresh': str(refresh)
+            }, status=status.HTTP_200_OK)
 
         return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
+
+# class LoginView(APIView):
+#     permission_classes = [AllowAny]
+
+#     def post(self, request):
+#         username = request.data.get('username')
+#         password = request.data.get('password')
+#         otp_code = request.data.get('otp_code', None)
+
+#         user = authenticate(username=username, password=password)
+#         if user is not None:
+#             # Verify OTP if TOTP is enabled
+#             if user.totp_secret and (not otp_code or not user.verify_totp(otp_code, valid_window=1)):
+#                 return Response({'error': 'Invalid OTP'}, status=status.HTTP_401_UNAUTHORIZED)
+
+#             refresh = RefreshToken.for_user(user)
+
+#             # Check user role
+#             if user.role == 'admin':
+#                 return Response({
+#                     'message': 'Admin login successful',
+#                     'user_id': user.id,
+#                     'username': user.username,
+#                     'role': user.role,
+#                     'access': str(refresh.access_token),
+#                     'refresh': str(refresh)
+#                 }, status=status.HTTP_200_OK)
+
+#             elif user.role == 'locksmith':
+#                 try:
+#                     locksmith = Locksmith.objects.get(user=user)
+#                     return Response({
+#                         'message': 'Login successful',
+#                         'user_id': user.id,
+#                         'username': user.username,
+#                         'role': user.role,
+#                         'is_verified': locksmith.is_verified,
+#                         'is_approved': locksmith.is_approved,
+#                         'access': str(refresh.access_token),
+#                         'refresh': str(refresh)
+#                     }, status=status.HTTP_200_OK)
+#                 except Locksmith.DoesNotExist:
+#                     return Response({'error': 'Locksmith record not found'}, status=status.HTTP_401_UNAUTHORIZED)
+
+#             elif user.role == 'customer':
+#                 return Response({
+#                     'message': 'Customer login successful',
+#                     'user_id': user.id,
+#                     'username': user.username,
+#                     'role': user.role,
+#                     'access': str(refresh.access_token),
+#                     'refresh': str(refresh)
+#                 }, status=status.HTTP_200_OK)
+
+#         return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
 
 
 # Custom Permissions
