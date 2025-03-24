@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-+jv$tbmdt@b%p6@wq&)($#v9gi8fv4&8vw%1(f^xfxy#+wg_kj
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['*','54.66.198.202','lockquick.com.au']
+ALLOWED_HOSTS = ['*','13.237.77.42','lockquick.com.au']
 
 
 
@@ -148,22 +148,11 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'locksmith1',
         'USER': 'root',
-        'PASSWORD': 'root',
-        'HOST': 'localhost',  # This matches the name of the db service in docker-compose.yml
-        'PORT': '3308',
+        'PASSWORD': 'Db@2025#Lockquick',
+        'HOST': '3.25.117.199',  # Change for RDS
+        'PORT': '3306',  # Default MySQL port
     }
 }
-
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.mysql',
-#         'NAME': 'locksmith1',
-#         'USER': 'root',
-#         'PASSWORD': 'Db@2025#Lockquick',
-#         'HOST': '3.25.117.199',  # Change for RDS
-#         'PORT': '3306',  # Default MySQL port
-#     }
-# }
 
 
 
