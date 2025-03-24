@@ -34,6 +34,7 @@ from geopy.distance import geodesic
 from django.views.decorators.csrf import csrf_exempt
 import json
 from django.http import HttpResponse
+from twilio.rest import Client   
 
 
 
@@ -454,6 +455,61 @@ class LoginView(APIView):
 
         return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
 
+# class LoginView(APIView):
+#     permission_classes = [AllowAny]
+
+#     def post(self, request):
+#         username = request.data.get('username')
+#         password = request.data.get('password')
+#         otp_code = request.data.get('otp_code', None)
+
+#         user = authenticate(username=username, password=password)
+#         if user is not None:
+#             # Verify OTP if TOTP is enabled
+#             if user.totp_secret and (not otp_code or not user.verify_totp(otp_code, valid_window=1)):
+#                 return Response({'error': 'Invalid OTP'}, status=status.HTTP_401_UNAUTHORIZED)
+
+#             refresh = RefreshToken.for_user(user)
+
+#             # Check user role
+#             if user.role == 'admin':
+#                 return Response({
+#                     'message': 'Admin login successful',
+#                     'user_id': user.id,
+#                     'username': user.username,
+#                     'role': user.role,
+#                     'access': str(refresh.access_token),
+#                     'refresh': str(refresh)
+#                 }, status=status.HTTP_200_OK)
+
+#             elif user.role == 'locksmith':
+#                 try:
+#                     locksmith = Locksmith.objects.get(user=user)
+#                     return Response({
+#                         'message': 'Login successful',
+#                         'user_id': user.id,
+#                         'username': user.username,
+#                         'role': user.role,
+#                         'is_verified': locksmith.is_verified,
+#                         'is_approved': locksmith.is_approved,
+#                         'access': str(refresh.access_token),
+#                         'refresh': str(refresh)
+#                     }, status=status.HTTP_200_OK)
+#                 except Locksmith.DoesNotExist:
+#                     return Response({'error': 'Locksmith record not found'}, status=status.HTTP_401_UNAUTHORIZED)
+
+#             elif user.role == 'customer':
+#                 return Response({
+#                     'message': 'Customer login successful',
+#                     'user_id': user.id,
+#                     'username': user.username,
+#                     'role': user.role,
+#                     'access': str(refresh.access_token),
+#                     'refresh': str(refresh)
+#                 }, status=status.HTTP_200_OK)
+
+#         return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
+
 
 # Custom Permissions
 class IsAdmin(permissions.BasePermission):
@@ -723,6 +779,7 @@ class ServiceRequestViewSet(viewsets.ModelViewSet):
         return Response({'status': 'request rejected'})
     
 class AdminSettingsViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
     queryset = AdminSettings.objects.all()
     serializer_class = AdminSettingsSerializer    
     
@@ -1054,7 +1111,28 @@ class LocksmithViewSet(viewsets.ModelViewSet):
         locksmith.save()
         return Response({"status": "Locksmith is now unavailable."})
         
+      
         
+
+#     # Twilio Credentials (Replace with actual credentials)
+# TWILIO_ACCOUNT_SID = "ACba1e3f20eb7083c73471a9e87c04802c"
+# TWILIO_AUTH_TOKEN = "ca2a6daa04eed144e8bb9af1269a265e"
+# TWILIO_PHONE_NUMBER = "+12233572123"
+
+def call_locksmith(locksmith_phone, locksmith_name, booking_id):
+    """Function to call the locksmith after successful payment."""
+    client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+    
+    message = f"Hello {locksmith_name}, you have received a new booking. Booking ID: {booking_id}. Please check your dashboard for details."
+    
+    call = client.calls.create(
+        twiml=f'<Response><Say>{message}</Say></Response>',
+        to=locksmith_phone,
+        from_=TWILIO_PHONE_NUMBER
+    )
+    
+    print(f"📞 Call triggered to Locksmith {locksmith_name} (Phone: {locksmith_phone}) - Call SID: {call.sid}")
+    return call.sid
 class BookingViewSet(viewsets.ModelViewSet):
     """
     ViewSet for handling bookings, payments, refunds, and status updates.
@@ -1095,7 +1173,11 @@ class BookingViewSet(viewsets.ModelViewSet):
             raise serializers.ValidationError({"error": "Only customers can create bookings."})
 
         serializer.save(customer=user)
+        
+        
+        
 
+    
     @action(detail=True, methods=['post'])
     def process_payment(self, request, pk=None):
         booking = self.get_object()
@@ -1126,6 +1208,38 @@ class BookingViewSet(viewsets.ModelViewSet):
             print(f"✅ Saved Booking {booking.id} with Stripe Session ID: {checkout_session.id}")
 
             return Response({'checkout_url': checkout_session.url})
+
+        except stripe.error.StripeError as e:
+            return Response({"error": str(e)}, status=400)
+    
+    @action(detail=True, methods=['post'])
+    def complete_payment(self, request, pk=None):
+        """Handles payment completion and triggers a call to the locksmith."""
+        booking = self.get_object()
+        
+        # Ensure payment was made
+        if not booking.payment_intent_id:
+            return Response({"error": "No PaymentIntent ID found. Ensure payment is completed."}, status=400)
+
+        try:
+            # Retrieve PaymentIntent
+            payment_intent = stripe.PaymentIntent.retrieve(booking.payment_intent_id)
+
+            if payment_intent.status == "succeeded":
+                booking.payment_status = "paid"
+                booking.status = "Scheduled"
+                booking.save()
+                
+                # 🔹 Trigger a call to the locksmith
+                locksmith = booking.locksmith_service.locksmith
+                call_locksmith(locksmith.contact_number, locksmith.user.get_full_name(), booking.id)
+
+                return Response({
+                    "status": "Payment successful. Booking confirmed.",
+                    "message": "Locksmith has been notified via an automated call."
+                })
+
+            return Response({"error": "Payment not completed."}, status=400)
 
         except stripe.error.StripeError as e:
             return Response({"error": str(e)}, status=400)

@@ -310,7 +310,7 @@ class LocksmithServiceSerializer(serializers.ModelSerializer):
 class AdminServiceSerializer(serializers.ModelSerializer):
     class Meta:
         model = AdminService
-        fields = ['id', 'name', 'base_price', 'description']
+        fields = ['id', 'name', 'description']
         
         
 

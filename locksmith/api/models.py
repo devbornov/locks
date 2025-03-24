@@ -113,7 +113,7 @@ class Service(models.Model):
 
 class AdminService(models.Model):
     name = models.CharField(max_length=255, unique=True)
-    base_price = models.DecimalField(max_digits=10, decimal_places=2)
+    # base_price = models.DecimalField(max_digits=10, decimal_places=2)
     description = models.TextField(null=True, blank=True)
     
     def __str__(self):

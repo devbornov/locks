@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-+jv$tbmdt@b%p6@wq&)($#v9gi8fv4&8vw%1(f^xfxy#+wg_kj
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['*','3.25.117.199','lockquick.com.au']
+ALLOWED_HOSTS = ['*','54.66.198.202','lockquick.com.au']
 
 
 
@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'api',
     'rest_framework_simplejwt',
     'django_otp.plugins.otp_totp',
+    'rest_framework_simplejwt.token_blacklist',
     'channels',
     
 
@@ -83,10 +84,11 @@ REST_FRAMEWORK = {
 
 
 SIMPLE_JWT = {
-   'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),  # Adjust as needed
+   'ACCESS_TOKEN_LIFETIME': timedelta(minutes=5),  # Adjust as needed
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
-     "ROTATE_REFRESH_TOKENS": True,  # Enables new refresh token generation
+    "ROTATE_REFRESH_TOKENS": True,  
     "BLACKLIST_AFTER_ROTATION": True, 
+    'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
 
@@ -141,26 +143,27 @@ WSGI_APPLICATION = 'locksmith.wsgi.application'
 #         'NAME': BASE_DIR / 'db.sqlite3',
 #     }
 # }
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.mysql',
-#         'NAME': 'locksmith1',
-#         'USER': 'root',
-#         'PASSWORD': 'root',
-#         'HOST': 'localhost',  # This matches the name of the db service in docker-compose.yml
-#         'PORT': '3308',
-#     }
-# }
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'locksmith1',
         'USER': 'root',
-        'PASSWORD': 'Db@2025#Lockquick',
-        'HOST': '3.25.117.199',  # Change for RDS
-        'PORT': '3306',  # Default MySQL port
+        'PASSWORD': 'root',
+        'HOST': 'localhost',  # This matches the name of the db service in docker-compose.yml
+        'PORT': '3308',
     }
 }
+
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.mysql',
+#         'NAME': 'locksmith1',
+#         'USER': 'root',
+#         'PASSWORD': 'Db@2025#Lockquick',
+#         'HOST': '3.25.117.199',  # Change for RDS
+#         'PORT': '3306',  # Default MySQL port
+#     }
+# }
 
 
 
