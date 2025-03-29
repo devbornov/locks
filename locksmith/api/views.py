@@ -3,11 +3,11 @@ from .permissions import IsAdmin
 from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
 from rest_framework.decorators import action
-from .models import Service, AdminSettings
+from .models import Service, AdminSettings , ContactMessage
 from .serializers import AdminSettingsSerializer, CustomerServiceRequestSerializer ,LocksmithCreateSerializer
 from .models import User, Locksmith, CarKeyDetails, Service, Transaction, ServiceRequest, ServiceBid ,CustomerServiceRequest , Customer , AdminService,LocksmithServices , Booking
 from .serializers import UserSerializer, LocksmithSerializer, CarKeyDetailsSerializer, ServiceSerializer, TransactionSerializer, ServiceRequestSerializer, ServiceBidSerializer,LocksmithServiceSerializer
-from .serializers import UserCreateSerializer , CustomerSerializer , AdminServiceSerializer , BookingSerializer
+from .serializers import UserCreateSerializer , CustomerSerializer , AdminServiceSerializer , BookingSerializer  , ContactMessageSerializer
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.permissions import AllowAny
@@ -35,6 +35,10 @@ from django.views.decorators.csrf import csrf_exempt
 import json
 from django.http import HttpResponse
 from twilio.rest import Client   
+from django.core.mail import EmailMultiAlternatives
+from django.template.loader import render_to_string
+from django.utils.html import strip_tags
+import os
 
 
 
@@ -95,26 +99,26 @@ class UserRegisterView(APIView):
 class CustomerProfileViewSet(viewsets.ModelViewSet):
     serializer_class = CustomerSerializer
     permission_classes = [IsAuthenticated]
+    http_method_names = ['get', 'patch', 'put']  # ✅ Ensure `PUT` is allowed
 
     def get_queryset(self):
-        # ✅ Ensures only the logged-in customer can access their own profile
+        """Ensure only the logged-in customer can access their profile"""
         return Customer.objects.filter(user=self.request.user)
 
     def get_object(self):
-        # ✅ Returns the logged-in customer's profile
+        """Return the logged-in user's customer profile"""
         return self.request.user.customer_profile
 
     def update(self, request, *args, **kwargs):
         """Update the logged-in customer's profile"""
         customer = self.get_object()
-        serializer = self.get_serializer(customer, data=request.data, partial=True)
+        serializer = self.get_serializer(customer, data=request.data, partial=False)  # ✅ Full update
 
         if serializer.is_valid():
             serializer.save()
             return Response({"message": "Profile updated successfully", "customer": serializer.data}, status=status.HTTP_200_OK)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
     
 
 # class LocksmithRegisterView(APIView):
@@ -604,47 +608,56 @@ class AdminLocksmithServiceViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
     
     
-    @action(detail=False, methods=['get'],permission_classes=[IsCustomer])
+    @action(detail=False, methods=['get'], permission_classes=[IsCustomer])
     def services_to_customer(self, request):
-            """Get all approved locksmith services, optionally filtered by service type and sorted by distance."""
-            
-            latitude = request.query_params.get('latitude')
-            longitude = request.query_params.get('longitude')
-            service_type = request.query_params.get('service_type', None)
+        """Get all approved locksmith services, optionally filtered by service type and sorted by distance."""
 
-            if not latitude or not longitude:
-                return Response({"error": "Latitude and Longitude are required"}, status=400)
+        latitude = request.query_params.get('latitude')
+        longitude = request.query_params.get('longitude')
+        service_type = request.query_params.get('service_type', None)
 
-            latitude, longitude = float(latitude), float(longitude)
+        if not latitude or not longitude:
+            return Response({"error": "Latitude and Longitude are required"}, status=400)
 
-            # Filter only approved services
-            approved_services = LocksmithServices.objects.filter(approved=True)
+        latitude, longitude = float(latitude), float(longitude)
 
-            # Apply filtering if service_type is provided
-            if service_type:
-                approved_services = approved_services.filter(service_type=service_type)
+        # Filter only approved services
+        approved_services = LocksmithServices.objects.filter(approved=True)
 
-            # Calculate distance for each locksmith and filter accordingly
-            locksmith_services_with_distance = []
-            
-            for service in approved_services:
-                locksmith = service.locksmith  # Assuming `locksmith` is a ForeignKey in `LocksmithServices`
-                locksmith_location = (locksmith.latitude, locksmith.longitude)
-                customer_location = (latitude, longitude)
-                distance_km = geodesic(customer_location, locksmith_location).km
+        # Apply filtering if service_type is provided
+        if service_type:
+            approved_services = approved_services.filter(service_type=service_type)
 
-                locksmith_services_with_distance.append({
-                    "locksmith": locksmith.user.username,
-                    "latitude": locksmith.latitude,
-                    "longitude": locksmith.longitude,
-                    "distance_km": round(distance_km, 2),
-                    "service": LocksmithServiceSerializer(service).data
-                })
+        # Calculate distance for each locksmith and filter accordingly
+        locksmith_services_with_distance = []
 
-            # Sort by nearest distance
-            locksmith_services_with_distance.sort(key=lambda x: x["distance_km"])
+        for service in approved_services:
+            locksmith = service.locksmith  # Assuming `locksmith` is a ForeignKey in `LocksmithServices`
+            locksmith_location = (locksmith.latitude, locksmith.longitude)
+            customer_location = (latitude, longitude)
+            distance_km = geodesic(customer_location, locksmith_location).km
 
-            return Response(locksmith_services_with_distance)
+            # Serialize service data
+            service_data = LocksmithServiceSerializer(service).data
+            service_data.pop("custom_price", None)  # Remove custom_price from response
+
+            # Ensure car_key_details appears only once
+            car_key_details = service_data.pop("car_key_details", None)
+
+            locksmith_services_with_distance.append({
+                "locksmith": locksmith.user.username,
+                "latitude": locksmith.latitude,
+                "longitude": locksmith.longitude,
+                "distance_km": round(distance_km, 2),
+                "service": service_data,
+                "car_key_details": car_key_details  # Only include car_key_details once
+            })
+
+        # Sort by nearest distance
+        locksmith_services_with_distance.sort(key=lambda x: x["distance_km"])
+
+        return Response(locksmith_services_with_distance)
+
 
     
     
@@ -690,6 +703,7 @@ class ServiceViewSet(viewsets.ModelViewSet):
         except AttributeError:
             return LocksmithServices.objects.none()  # Return empty if not a locksmith
 
+    
     def perform_create(self, serializer):
         """Automatically assign the logged-in locksmith and calculate total price."""
         user = self.request.user
@@ -715,22 +729,79 @@ class ServiceViewSet(viewsets.ModelViewSet):
 
         # Calculate percentage amount
         percentage_amount = (custom_price * percentage) / Decimal("100")
-
-        # **Fix: Ensure correct formula**
         total_price = custom_price + percentage_amount + commission_amount  # ✅ Correct formula
 
-        # Debugging print statements (Check Logs)
-        print(f"Custom Price: {custom_price}")
-        print(f"Percentage ({percentage}%): {percentage_amount}")
-        print(f"Commission Amount: {commission_amount}")
-        print(f"Total Price Calculated: {total_price}")
+        # Handle Car Key Details for Automotive Services
+        service_type = serializer.validated_data.get("service_type", "residential")
+        car_key_details_data = self.request.data.get("car_key_details", None)
 
-        # Save service with calculated total price
-        serializer.save(
-            locksmith=locksmith,
-            total_price=total_price,
-            approved=False
-        )
+        if service_type == "automotive":
+            if not car_key_details_data or not isinstance(car_key_details_data, dict):
+                raise serializers.ValidationError({"error": "Car key details must be provided as a dictionary for automotive services."})
+
+            # Create a CarKeyDetails instance with extracted dictionary values
+            car_key_details = CarKeyDetails.objects.create(
+                manufacturer=car_key_details_data.get("manufacturer"),
+                model=car_key_details_data.get("model"),
+                year=car_key_details_data.get("year"),
+                number_of_buttons=car_key_details_data.get("number_of_buttons")
+            )
+
+            serializer.save(
+                locksmith=locksmith,
+                total_price=total_price,
+                approved=False,
+                car_key_details=car_key_details
+            )
+        else:
+            serializer.save(
+                locksmith=locksmith,
+                total_price=total_price,
+                approved=False
+            )
+    
+    
+    # def perform_create(self, serializer):
+    #     """Automatically assign the logged-in locksmith and calculate total price."""
+    #     user = self.request.user
+
+    #     # Ensure user has an associated Locksmith account
+    #     if not hasattr(user, "locksmith"):
+    #         raise serializers.ValidationError({"error": "User is not associated with a locksmith account."})
+
+    #     locksmith = user.locksmith  # Now safe to access
+
+    #     # Get admin commission settings
+    #     admin_settings = AdminSettings.objects.first()
+    #     if not admin_settings:
+    #         raise serializers.ValidationError({"error": "Admin settings not configured."})
+
+    #     # Fetch commission settings
+    #     commission_amount = admin_settings.commission_amount if admin_settings else Decimal("0")
+    #     percentage = admin_settings.percentage if admin_settings else Decimal("0")
+
+    #     # Convert custom_price to Decimal
+    #     custom_price = serializer.validated_data.get("custom_price", 0)
+    #     custom_price = Decimal(str(custom_price))
+
+    #     # Calculate percentage amount
+    #     percentage_amount = (custom_price * percentage) / Decimal("100")
+
+    #     # **Fix: Ensure correct formula**
+    #     total_price = custom_price + percentage_amount + commission_amount  # ✅ Correct formula
+
+    #     # Debugging print statements (Check Logs)
+    #     print(f"Custom Price: {custom_price}")
+    #     print(f"Percentage ({percentage}%): {percentage_amount}")
+    #     print(f"Commission Amount: {commission_amount}")
+    #     print(f"Total Price Calculated: {total_price}")
+
+    #     # Save service with calculated total price
+    #     serializer.save(
+    #         locksmith=locksmith,
+    #         total_price=total_price,
+    #         approved=False
+    #     )
 
 class TransactionViewSet(viewsets.ModelViewSet):
     queryset = Transaction.objects.all()
@@ -1002,8 +1073,38 @@ class LocksmithViewSet(viewsets.ModelViewSet):
         locksmith.is_verified = True
         locksmith.is_approved = True  # Approve upon verification
         locksmith.save()
+
+        # 🔹 Send email notification
+        self.send_verification_email(locksmith)
+
         return Response({'status': 'Locksmith verified', 'locksmith_data': LocksmithSerializer(locksmith).data})
 
+    def send_verification_email(self, locksmith):
+        """✅ Sends email notification when locksmith gets verified"""
+        subject = "Your Locksmith Account is Verified!"
+        from_email = "accounts@lockquick.com.au"  # Replace with your email
+        recipient_list = [locksmith.user.email]
+
+        # Render HTML email template
+        context = {
+            'locksmith_name': locksmith.user.username,
+            'site_url': "http://127.0.0.1:8000/dashboard",  # Update with live URL
+        }
+        html_content = render_to_string("emails/locksmith_verified.html", context)
+        text_content = strip_tags(html_content)  # Fallback text email
+
+        email = EmailMultiAlternatives(subject, text_content, from_email, recipient_list)
+        email.attach_alternative(html_content, "text/html")
+
+        # Attach logo (assuming it's in static folder)
+        logo_path = os.path.join("static", "images", "logo.png")  # Update path as needed
+        if os.path.exists(logo_path):
+            with open(logo_path, "rb") as f:
+                email.attach("logo.png", f.read(), "image/png")
+
+        email.send()
+        
+        
     # ✅ Reject Locksmith (Admin Only)
     @action(detail=True, methods=['put'], permission_classes=[IsAdminUser])
     def reject_locksmith(self, request, pk=None):
@@ -1011,7 +1112,36 @@ class LocksmithViewSet(viewsets.ModelViewSet):
         locksmith.is_verified = False
         locksmith.is_approved = False
         locksmith.save()
+
+        # 🔹 Send rejection email notification
+        self.send_rejection_email(locksmith)
+
         return Response({'status': 'Locksmith rejected', 'locksmith_data': LocksmithSerializer(locksmith).data})
+
+    def send_rejection_email(self, locksmith):
+        """❌ Sends email notification when locksmith gets rejected"""
+        subject = "Your Locksmith Application Has Been Rejected"
+        from_email = "accounts@lockquick.com.au"  # Replace with your email
+        recipient_list = [locksmith.user.email]
+
+        # Render HTML email template
+        context = {
+            'locksmith_name': locksmith.user.username,
+            'support_email': "support@lockquick.com.au"  # Replace with your support email
+        }
+        html_content = render_to_string("emails/locksmith_rejected.html", context)
+        text_content = strip_tags(html_content)  # Fallback text email
+
+        email = EmailMultiAlternatives(subject, text_content, from_email, recipient_list)
+        email.attach_alternative(html_content, "text/html")
+
+        # Attach logo (assuming it's in static folder)
+        logo_path = os.path.join("static", "images", "logo.png")  # Update path as needed
+        if os.path.exists(logo_path):
+            with open(logo_path, "rb") as f:
+                email.attach("logo.png", f.read(), "image/png")
+
+        email.send()
 
     # ✅ View Locksmith Details (Admin Only)
     @action(detail=True, methods=['get'], permission_classes=[IsAdminUser])
@@ -1417,3 +1547,71 @@ def stripe_webhook(request):
             print("\n❌ No matching booking found for this payment!")
 
     return HttpResponse(status=200)
+
+
+
+
+
+
+
+stripe.api_key = settings.STRIPE_SECRET_KEY
+
+def get_mcc_code(request):
+    try:
+        # Retrieve account details
+        account = stripe.Account.retrieve()
+        mcc_code = account.get("business_profile", {}).get("mcc", "MCC not assigned")
+        
+        return JsonResponse({"mcc": mcc_code})
+    
+    except stripe.error.StripeError as e:
+        return JsonResponse({"error": str(e)}, status=400)
+    
+    
+    
+    
+    
+
+# stripe.api_key = settings.STRIPE_SECRET_KEY    
+# @csrf_exempt
+# def update_mcc(request):
+#     if request.method == "POST":
+#         try:
+#             # Get request data
+#             data = json.loads(request.body)
+#             account_id = data.get("account_id")  # Stripe Account ID
+
+#             if not account_id:
+#                 return JsonResponse({"error": "Account ID is required"}, status=400)
+
+#             # Update business profile MCC
+#             updated_account = stripe.Account.modify(
+#                 account_id,
+#                 business_profile={"mcc": "7699"}
+#             )
+
+#             return JsonResponse({
+#                 "message": "MCC updated successfully",
+#                 "updated_mcc": updated_account["business_profile"]["mcc"]
+#             }, status=200)
+
+#         except stripe.error.StripeError as e:
+#             return JsonResponse({"error": str(e)}, status=400)
+#         except Exception as e:
+#             return JsonResponse({"error": "An unexpected error occurred: " + str(e)}, status=500)
+
+
+
+
+
+class ContactMessageViewSet(viewsets.ModelViewSet):
+    queryset = ContactMessage.objects.all().order_by('-created_at')
+    serializer_class = ContactMessageSerializer
+
+    def perform_create(self, serializer):
+        instance = serializer.save()
+
+        # Send auto-response email
+        subject = "Thank you for contacting us!"
+        message = f"Hello {instance.name},\n\nWe received your message: {instance.message}\n\nWe will get back to you soon!"
+        send_mail(subject, message, 'your-email@example.com', [instance.email])

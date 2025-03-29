@@ -19,7 +19,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.urls import path , include
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
-from api.views import CreateAdminUserView, UserRegisterView, LocksmithRegisterView, LoginView,LocksmithProfileView , LogoutView
+from api.views import CreateAdminUserView, UserRegisterView, LocksmithRegisterView, LoginView,LocksmithProfileView , LogoutView , get_mcc_code 
 from api.views import stripe_webhook
 
 urlpatterns = [
@@ -35,6 +35,8 @@ urlpatterns = [
     path('token/refresh/', TokenRefreshView.as_view(), name='token-refresh'),
     path("stripe-webhook/", stripe_webhook, name="stripe-webhook"),
     path("logout/", LogoutView.as_view(), name="logout"),
+    path("get-mcc/", get_mcc_code, name="get_mcc"),
+    # path("update-mcc/", update_mcc, name="update_mcc"),
 ]
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

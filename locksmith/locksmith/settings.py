@@ -84,7 +84,7 @@ REST_FRAMEWORK = {
 
 
 SIMPLE_JWT = {
-   'ACCESS_TOKEN_LIFETIME': timedelta(minutes=5),  # Adjust as needed
+   'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),  # Adjust as needed
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
     "ROTATE_REFRESH_TOKENS": True,  
     "BLACKLIST_AFTER_ROTATION": True, 
@@ -109,11 +109,10 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = 'locksmith.urls'
-
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [os.path.join(BASE_DIR, 'templates')],  # Ensure templates directory is set
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -129,10 +128,8 @@ TEMPLATES = [
 WSGI_APPLICATION = 'locksmith.wsgi.application'
 
 
-
-
-
-
+STATIC_URL = '/static/'
+STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
@@ -143,16 +140,29 @@ WSGI_APPLICATION = 'locksmith.wsgi.application'
 #         'NAME': BASE_DIR / 'db.sqlite3',
 #     }
 # }
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'locksmith1',
         'USER': 'root',
-        'PASSWORD': 'Db@2025#Lockquick',
-        'HOST': '3.25.117.199',  # Change for RDS
-        'PORT': '3306',  # Default MySQL port
+        'PASSWORD': 'root',
+        'HOST': 'localhost',  # This matches the name of the db service in docker-compose.yml
+        'PORT': '3308',
     }
 }
+
+
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.mysql',
+#         'NAME': 'locksmith1',
+#         'USER': 'root',
+#         'PASSWORD': 'Db@2025#Lockquick',
+#         'HOST': '3.25.117.199',  # Change for RDS
+#         'PORT': '3306',  # Default MySQL port
+#     }
+# }
 
 
 
@@ -229,9 +239,11 @@ CSRF_TRUSTED_ORIGINS = ["http://localhost:3000"]
 import stripe
 
 # Stripe API Keys (Replace with your keys from Stripe Dashboard)
-STRIPE_PUBLISHABLE_KEY = "pk_test_51QzBTNQT2MEMwg5sILBLhsJBtAj6UQhtixuf2vn4cD8yaDq4I0ByskB05hOKdxCDSZ9T7dYyYkI5BKUr2DjoExmt001sW0NvSh"
-STRIPE_SECRET_KEY = "sk_test_51QzBTNQT2MEMwg5sR9ZqzB9uX4e5466rsOsvETfnCg0k9YDKPzZprmKlAgnKWiRgPSDPQlb2jpS3mMGHhZMYU5qO00qGVWUdYE"
+# STRIPE_PUBLISHABLE_KEY = "pk_live_51QzDGvINNfIXkCoQFIOc731xjuQPLtiN0v2PDi56ydjN4Xjmeek1lB0AF0xaa8HksoxJtWthma0Wf2chSOkaga6a00x6wVAHfm"
+# STRIPE_SECRET_KEY = "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"
 
+# STRIPE_PUBLISHABLE_KEY = "pk_test_51QzDGvINNfIXkCoQzIsOgudci6Ilp9p2cEUeGQD7vtzmFYpip0GaZxbSl4feFyXpIqwWWFOTipTKxs11O2WNW66U0083Dieamo"
+# STRIPE_SECRET_KEY = "sk_test_51QzDGvINNfIXkCoQxQZQJACH5uITNMuyaBC9e6myoWw7p3lFZAIXHd9guZATi5RSKTIOZr0gOeaOrtNJNjAx3qvv00WjtFxREn"
 # Set up Stripe API key globally
 stripe.api_key = STRIPE_SECRET_KEY
 
@@ -239,11 +251,25 @@ stripe.api_key = STRIPE_SECRET_KEY
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
 
+import os
+import django
+
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'locksmithbackend.settings')
+django.setup()
 
 
 
 
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'developerbornov@gmail.com'  # Replace with your Gmail
+EMAIL_HOST_PASSWORD = 'tdpj cknd mwws fgmb'  # Replace with your App Password
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 
 
-STRIPE_WEBHOOK_SECRET = "whsec_qJVrp6qPW6McXqaszANb5YVJG6NrJz2w"
+
+# STRIPE_WEBHOOK_SECRET = "whsec_qJVrp6qPW6McXqaszANb5YVJG6NrJz2w"
+# STRIPE_WEBHOOK_SECRET = "whsec_qybAt6OdcP3osUHznayFa5Mxxno0ICHi"

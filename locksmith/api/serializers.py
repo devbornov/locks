@@ -6,7 +6,7 @@ from io import BytesIO
 from decimal import Decimal
 from django.conf import settings
 from rest_framework import serializers
-from .models import User, Locksmith, Customer, CustomerServiceRequest , CarKeyDetails, Service, Transaction, ServiceRequest, ServiceBid, AdminSettings, PlatformStatistics,LocksmithServices,AdminService , Booking
+from .models import User, Locksmith, Customer, CustomerServiceRequest , CarKeyDetails, Service, Transaction, ServiceRequest, ServiceBid, AdminSettings, PlatformStatistics,LocksmithServices,AdminService , Booking , ContactMessage
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -143,11 +143,20 @@ class LocksmithCreateSerializer(serializers.ModelSerializer):
 
 # Customer Serializer
 class CustomerSerializer(serializers.ModelSerializer):
-    user = UserSerializer(read_only=True)
+    username = serializers.CharField(source='user.username', required=True)  # Allow updating username
 
     class Meta:
         model = Customer
-        fields = ['id', 'user', 'address', 'contact_number', 'latitude', 'longitude']  # ✅ Added Lat & Long
+        fields = ['id', 'username', 'address', 'contact_number', 'latitude', 'longitude']  # ✅ Include username
+
+    def update(self, instance, validated_data):
+        # Update the username if provided
+        user_data = validated_data.pop('user', {})
+        if 'username' in user_data:
+            instance.user.username = user_data['username']
+            instance.user.save()
+
+        return super().update(instance, validated_data)# ✅ Added Lat & Long
 
 
 class LocksmithSerializer(serializers.ModelSerializer):
@@ -274,6 +283,34 @@ class PlatformStatisticsSerializer(serializers.ModelSerializer):
 
 
 
+# class LocksmithServiceSerializer(serializers.ModelSerializer):
+#     admin_service_id = serializers.PrimaryKeyRelatedField(
+#         queryset=AdminService.objects.all(),
+#         source='admin_service'
+#     )
+#     admin_service_name = serializers.SerializerMethodField()
+#     locksmith_name = serializers.SerializerMethodField()
+#     is_available = serializers.SerializerMethodField()
+
+#     class Meta:
+#         model = LocksmithServices
+#         fields = [
+#             'id', 'locksmith_name', 'is_available', 'admin_service_id',
+#             'admin_service_name', 'service_type', 'custom_price',
+#             'total_price', 'details', 'approved'
+#         ]
+#         read_only_fields = ['total_price']
+
+#     def get_admin_service_name(self, obj):
+#         return obj.admin_service.name if obj.admin_service else None
+
+#     def get_locksmith_name(self, obj):
+#         return obj.locksmith.user.username if obj.locksmith else None
+    
+#     def get_is_available(self, obj):
+#         return obj.locksmith.is_available
+
+
 class LocksmithServiceSerializer(serializers.ModelSerializer):
     admin_service_id = serializers.PrimaryKeyRelatedField(
         queryset=AdminService.objects.all(),
@@ -282,13 +319,14 @@ class LocksmithServiceSerializer(serializers.ModelSerializer):
     admin_service_name = serializers.SerializerMethodField()
     locksmith_name = serializers.SerializerMethodField()
     is_available = serializers.SerializerMethodField()
+    car_key_details = CarKeyDetailsSerializer(required=False)  # Include CarKeyDetails
 
     class Meta:
         model = LocksmithServices
         fields = [
             'id', 'locksmith_name', 'is_available', 'admin_service_id',
             'admin_service_name', 'service_type', 'custom_price',
-            'total_price', 'details', 'approved'
+            'total_price', 'details', 'approved', 'car_key_details'
         ]
         read_only_fields = ['total_price']
 
@@ -301,9 +339,38 @@ class LocksmithServiceSerializer(serializers.ModelSerializer):
     def get_is_available(self, obj):
         return obj.locksmith.is_available
 
+    def validate(self, data):
+        """Ensure car_key_details is provided for automotive services."""
+        if data.get('service_type') == 'automotive' and not data.get('car_key_details'):
+            raise serializers.ValidationError({
+                "car_key_details": "Car key details are required for automotive services."
+            })
+        return data
 
+    def create(self, validated_data):
+        """Handles Locksmith Service creation with Car Key Details if applicable."""
 
+        # Extract car_key_details separately
+        car_key_details_data = validated_data.pop("car_key_details", None)
+        car_key_details = None  
 
+        if car_key_details_data:
+            if isinstance(car_key_details_data, dict):
+                # ✅ Ensure the new CarKeyDetails is saved and assigned
+                car_key_details = CarKeyDetails.objects.create(**car_key_details_data)
+                print("Car Key Details Created:", car_key_details.id)  # Debugging
+            elif isinstance(car_key_details_data, CarKeyDetails):
+                car_key_details = car_key_details_data
+
+        # ✅ Create Locksmith Service instance with the assigned car_key_details
+        locksmith_service = LocksmithServices.objects.create(
+            **validated_data, 
+            car_key_details=car_key_details  # Ensure it is assigned
+        )
+
+        print("Locksmith Service Created:", locksmith_service.id, "with Car Key ID:", locksmith_service.car_key_details.id)  # Debugging
+
+        return locksmith_service
 
 
 
@@ -355,3 +422,12 @@ class BookingSerializer(serializers.ModelSerializer):
 
     def get_locksmith_service_type(self, obj):
         return obj.locksmith_service.service_type if obj.locksmith_service else None
+
+
+
+
+
+class ContactMessageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ContactMessage
+        fields = '__all__'
