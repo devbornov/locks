@@ -239,11 +239,7 @@ CSRF_TRUSTED_ORIGINS = ["http://localhost:3000"]
 import stripe
 
 # Stripe API Keys (Replace with your keys from Stripe Dashboard)
-# STRIPE_PUBLISHABLE_KEY = "pk_live_51QzDGvINNfIXkCoQFIOc731xjuQPLtiN0v2PDi56ydjN4Xjmeek1lB0AF0xaa8HksoxJtWthma0Wf2chSOkaga6a00x6wVAHfm"
-# STRIPE_SECRET_KEY = "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"
 
-# STRIPE_PUBLISHABLE_KEY = "pk_test_51QzDGvINNfIXkCoQzIsOgudci6Ilp9p2cEUeGQD7vtzmFYpip0GaZxbSl4feFyXpIqwWWFOTipTKxs11O2WNW66U0083Dieamo"
-# STRIPE_SECRET_KEY = "sk_test_51QzDGvINNfIXkCoQxQZQJACH5uITNMuyaBC9e6myoWw7p3lFZAIXHd9guZATi5RSKTIOZr0gOeaOrtNJNjAx3qvv00WjtFxREn"
 # Set up Stripe API key globally
 stripe.api_key = STRIPE_SECRET_KEY
 
