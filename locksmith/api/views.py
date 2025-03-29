@@ -1244,10 +1244,10 @@ class LocksmithViewSet(viewsets.ModelViewSet):
       
         
 
-#     # Twilio Credentials (Replace with actual credentials)
-# TWILIO_ACCOUNT_SID = "ACba1e3f20eb7083c73471a9e87c04802c"
-# TWILIO_AUTH_TOKEN = "ca2a6daa04eed144e8bb9af1269a265e"
-# TWILIO_PHONE_NUMBER = "+12233572123"
+    # Twilio Credentials (Replace with actual credentials)
+TWILIO_ACCOUNT_SID = "ACba1e3f20eb7083c73471a9e87c04802c"
+TWILIO_AUTH_TOKEN = "ca2a6daa04eed144e8bb9af1269a265e"
+TWILIO_PHONE_NUMBER = "+12233572123"
 
 def call_locksmith(locksmith_phone, locksmith_name, booking_id):
     """Function to call the locksmith after successful payment."""
