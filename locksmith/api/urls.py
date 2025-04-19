@@ -5,7 +5,7 @@ from .views import (
     ServiceViewSet, TransactionViewSet, 
     ServiceRequestViewSet, ServiceBidViewSet, 
     AdminSettingsViewSet,AllLocksmiths,CustomersViewSet,AdmincomissionViewSet,CustomerServiceRequestViewSet,Approvalverification, BookingViewSet , 
-    AdminLocksmithServiceViewSet,AdminLocksmithServiceApprovalViewSet , CustomerProfileViewSet , ContactMessageViewSet
+    AdminLocksmithServiceViewSet,AdminLocksmithServiceApprovalViewSet , CustomerProfileViewSet , ContactMessageViewSet , ForgotPasswordViewSet
 )
 
 # Initialize Default Router
@@ -29,6 +29,7 @@ router.register(r'admin/service-approval', AdminLocksmithServiceApprovalViewSet,
 router.register(r'bookings', BookingViewSet)
 router.register(r'customer-profile', CustomerProfileViewSet, basename='customer-profile')
 router.register(r'contact', ContactMessageViewSet, basename='contact')
+router.register(r'forgot-password', ForgotPasswordViewSet, basename='forgot-password')
 # router.register(r'locksmithservices', LocksmithServiceUpdateViewSet, basename='locksmithservices')
 # Add AdminSettings viewset
 

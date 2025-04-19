@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-+jv$tbmdt@b%p6@wq&)($#v9gi8fv4&8vw%1(f^xfxy#+wg_kj
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['*','13.237.77.42','lockquick.com.au']
+ALLOWED_HOSTS = ['*','127.0.0.1','13.237.77.42','lockquick.com.au']
 
 
 
@@ -34,6 +34,7 @@ ALLOWED_HOSTS = ['*','13.237.77.42','lockquick.com.au']
 INSTALLED_APPS = [
     'daphne',
     'corsheaders',
+    'django.contrib.sites',  # ✅ REQUIRED for allauth
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -43,12 +44,22 @@ INSTALLED_APPS = [
     'rest_framework',
     'api',
     'rest_framework_simplejwt',
+    'rest_framework.authtoken',
     'django_otp.plugins.otp_totp',
     'rest_framework_simplejwt.token_blacklist',
     'channels',
+    'allauth',
+    'allauth.account',
+    'allauth.socialaccount',  # This handles social authentication
+    'allauth.socialaccount.providers.google',  # Google OAuth
+    'allauth.socialaccount.providers.facebook',  # Facebook OAuth
+    'dj_rest_auth',
+    'dj_rest_auth.registration',
     
-
 ]
+
+# # Required setting for django.contrib.sites
+SITE_ID = 1
 
 
 
@@ -98,14 +109,17 @@ AUTH_USER_MODEL = 'api.User'
 
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware', 
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
+    'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'corsheaders.middleware.CorsMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
+    
+    # Required for allauth
+    'allauth.account.middleware.AccountMiddleware',
 ]
 
 ROOT_URLCONF = 'locksmith.urls'
@@ -159,7 +173,7 @@ DATABASES = {
 #         'NAME': 'locksmith1',
 #         'USER': 'root',
 #         'PASSWORD': 'Db@2025#Lockquick',
-#         'HOST': '3.25.117.199',  # Change for RDS
+#         'HOST': 'localhost,  # Change for RDS
 #         'PORT': '3306',  # Default MySQL port
 #     }
 # }
@@ -225,13 +239,25 @@ CORS_ALLOW_ALL_ORIGINS = True
 
 
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",  # Replace with your frontend URL
+    "http://localhost:3000", 
+    "http://localhost:3001"
 ]
 
 
-CSRF_TRUSTED_ORIGINS = ["http://localhost:3000"]
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:3000",
+    "http://localhost:3001"
+]
 
+# CORS_ALLOWED_ORIGIN_REGEXES = [
+#     r"^http://localhost:\d+$",
+# ]
 
+# CSRF_TRUSTED_ORIGINS = [
+#     "http://localhost:3000",
+#     "http://localhost:3001",
+#     "http://localhost:3002",
+# ]
 
 
 
@@ -249,25 +275,90 @@ stripe.api_key = STRIPE_SECRET_KEY
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
 
-import os
-import django
+# import os
+# import django
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'locksmithbackend.settings')
-django.setup()
+# os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'locksmithbackend.settings')
+# django.setup()
 
 
 
+
+# EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+# EMAIL_HOST = 'smtp.gmail.com'
+# EMAIL_PORT = 587
+# EMAIL_USE_TLS = True
+# EMAIL_HOST_USER = 'developerbornov@gmail.com'  # Replace with your Gmail
+# EMAIL_HOST_PASSWORD = 'tdpj cknd mwws fgmb'  # Replace with your App Password
+# DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'developerbornov@gmail.com'  # Replace with your Gmail
-EMAIL_HOST_PASSWORD = 'tdpj cknd mwws fgmb'  # Replace with your App Password
+EMAIL_HOST = 'mail.lockquick.com.au'
+EMAIL_PORT = 465  # Use SSL port as per the given settings
+EMAIL_USE_SSL = True  # SSL is required for port 465
+EMAIL_USE_TLS = False  # TLS should be False since SSL is being used
+EMAIL_HOST_USER = 'contact@lockquick.com.au'  # Replace with your email
+EMAIL_HOST_PASSWORD = 'w4dbqH5waUWUCAx'  # Replace with your actual password
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
-
 
 
 
 # STRIPE_WEBHOOK_SECRET = "whsec_qJVrp6qPW6McXqaszANb5YVJG6NrJz2w"
 STRIPE_WEBHOOK_SECRET = "whsec_qybAt6OdcP3osUHznayFa5Mxxno0ICHi"
+
+
+
+
+
+
+AUTHENTICATION_BACKENDS = (
+    'django.contrib.auth.backends.ModelBackend',  # Default backend
+    'allauth.account.auth_backends.AuthenticationBackend',  # Required for social login
+)
+
+
+
+REST_USE_JWT = True
+JWT_AUTH_COOKIE = 'access'
+JWT_AUTH_REFRESH_COOKIE = 'refresh'
+
+# SOCIALACCOUNT_PROVIDERS = {
+#     'google': {
+#         'SCOPE': [
+#             'profile',
+#             'email',
+#         ],
+#         'AUTH_PARAMS': {
+#             'access_type': 'online',
+#         },
+#     },
+#     'facebook': {
+#         'METHOD': 'oauth2',
+#         'SCOPE': ['email', 'public_profile'],
+#         'FIELDS': ['id', 'email', 'name'],
+#     },
+# }
+
+
+SITE_URL = "https://lockquick.com.au"
+FRONTEND_URL = "https://lockquick.com.au/accounts/google/login/callback/"
+SOCIAL_AUTH_GOOGLE_CALLBACK_URL = FRONTEND_URL
+
+SOCIALACCOUNT_PROVIDERS = {
+    'google': {
+        'APP': {
+            'client_id': '936017161429-4igasmus02gf9p9hmutb9tir1ma91a30.apps.googleusercontent.com',
+            'secret': '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',
+            'key': ''
+        }
+    },
+   
+}
+
+
+
+SOCIAL_AUTH_GOOGLE_CALLBACK_URL = "https://lockquick.com.au/accounts/google/login/callback/"
+
+
+
+# SOCIALACCOUNT_ADAPTER = "api.adapters.CustomSocialAccountAdapter"

@@ -2,7 +2,10 @@ from django.db import models
 from django.contrib.auth.models import AbstractUser
 import pyotp
 
-# User Model with Role-Based Access
+# User Model with Role-Based Accessfrom django.contrib.auth.models import AbstractUser
+from django.db import models
+import pyotp
+
 class User(AbstractUser):
     ROLE_CHOICES = [
         ('admin', 'Admin'),
@@ -10,16 +13,17 @@ class User(AbstractUser):
         ('customer', 'Customer'),
     ]
     role = models.CharField(max_length=50, choices=ROLE_CHOICES, default='customer')
-    totp_secret = models.CharField(max_length=32, blank=True, null=True)  # Optional TOTP Secret
+    totp_secret = models.CharField(max_length=32, blank=True, null=True)  # Google Authenticator Secret
+    otp_code = models.CharField(max_length=6, blank=True, null=True)  # Temporary OTP for Password Reset
 
     def enable_totp(self):
-        """Generate a TOTP secret key for the user if they enable TOTP."""
-        if not self.totp_secret:
-            self.totp_secret = pyotp.random_base32()
-            self.save()
+        """Generate a new TOTP secret key and save it in the database."""
+        self.totp_secret = pyotp.random_base32()
+        self.save()
+        return self.totp_secret  # Return the secret for generating a QR code
 
     def verify_totp(self, otp_code, valid_window=1):
-        """Verify the OTP code entered by the user."""
+        """Verify the OTP entered by the user using Google Authenticator."""
         if not self.totp_secret:
             return False  # TOTP not enabled
         totp = pyotp.TOTP(self.totp_secret)
@@ -27,6 +31,7 @@ class User(AbstractUser):
 
     def __str__(self):
         return f"{self.username} - {self.role}"
+
 
 # Admin Settings Model (For Commission & Platform Settings)  
 class AdminSettings(models.Model):
@@ -58,21 +63,35 @@ class Customer(models.Model):
 
 
 # Locksmith Model
+from django.core.exceptions import ValidationError
+
+def validate_latitude(value):
+    if value is not None and (value < -90 or value > 90):
+        raise ValidationError("Latitude must be between -90 and 90.")
+
+def validate_longitude(value):
+    if value is not None and (value < -180 or value > 180):
+        raise ValidationError("Longitude must be between -180 and 180.")
+
 class Locksmith(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     service_area = models.CharField(max_length=255, default="")
-    stripe_account_id = models.CharField(max_length=255, blank=True, null=True)  # ✅ Store Stripe ID
+    stripe_account_id = models.CharField(max_length=255, blank=True, null=True)
     is_approved = models.BooleanField(default=False)
     reputation_score = models.DecimalField(max_digits=5, decimal_places=2, default=0.0)
-    latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
-    longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    latitude = models.DecimalField(
+        max_digits=9, decimal_places=6, null=True, blank=True, validators=[validate_latitude]
+    )
+    longitude = models.DecimalField(
+        max_digits=9, decimal_places=6, null=True, blank=True, validators=[validate_longitude]
+    )
     address = models.TextField(default="")
     contact_number = models.CharField(max_length=15, blank=True, null=True, default="")
     pcc_file = models.FileField(upload_to='locksmiths/pcc/', blank=True, null=True)
     license_file = models.FileField(upload_to='locksmiths/license/', blank=True, null=True)
     photo = models.ImageField(upload_to='locksmiths/photos/', blank=True, null=True)
     is_verified = models.BooleanField(default=False)
-    is_available = models.BooleanField(default=True , blank=True, null=True)
+    is_available = models.BooleanField(default=True, blank=True, null=True)
 
     def __str__(self):
         return f"{self.user.username} - {self.service_area}"
@@ -295,3 +314,7 @@ class ContactMessage(models.Model):
 
     def __str__(self):
         return self.subject
+    
+    
+    
+    

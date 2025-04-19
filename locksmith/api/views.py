@@ -121,37 +121,6 @@ class CustomerProfileViewSet(viewsets.ModelViewSet):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
 
-# class LocksmithRegisterView(APIView):
-#     permission_classes = [AllowAny]
-
-#     def post(self, request):
-#         serializer = UserCreateSerializer(data=request.data)
-#         if serializer.is_valid():
-#             user = serializer.save()
-#             user.set_password(request.data['password'])  # Hash password
-#             user.save()
-
-#             # Create Locksmith Profile
-#             locksmith = Locksmith.objects.create(
-#                 user=user,
-#                 is_approved=False,
-#                 address=request.data.get('address', ''),  
-#                 contact_number=request.data.get('contact_number', ''),  
-#                 pcc_file=request.data.get('pcc_file', None),  
-#                 license_file=request.data.get('license_file', None),  
-#                 photo=request.data.get('photo', None),  
-#             )
-
-#             refresh = RefreshToken.for_user(user)
-#             return Response({
-#                 'message': 'Locksmith registered successfully, pending approval',
-#                 'user': serializer.data,
-#                 # 'role':serializer.data,
-#                 'access': str(refresh.access_token),
-#                 'refresh': str(refresh)
-#             }, status=status.HTTP_201_CREATED)
-
-#         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 class LocksmithRegisterView(APIView):
     permission_classes = [AllowAny]
 
@@ -284,109 +253,6 @@ class Approvalverification(viewsets.ModelViewSet):
             return Response({"error": "Locksmith profile not found."}, status=404)
     
        
-# class LocksmithViewSet(viewsets.ModelViewSet):
-#     queryset = Locksmith.objects.all()
-#     serializer_class = LocksmithSerializer
-#     permission_classes = [IsAdmin]  # Only Admin can manage locksmiths
-
-#     @action(detail=True, methods=['put'], permission_classes=[IsAdmin])
-#     def verify_locksmith(self, request, pk=None):
-#         locksmith = self.get_object()
-#         locksmith.is_verified = True
-#         locksmith.is_approved = True  # Approve upon verification
-#         locksmith.save()
-#         locksmith_data = {
-#             "id": locksmith.id,
-#             "user": {
-#                 "id": locksmith.user.id,
-#                 "username": locksmith.user.username,
-#                 "full_name": locksmith.user.get_full_name(),
-#                 "email": locksmith.user.email
-#             },
-#             "service_area": locksmith.service_area,
-#             "address": locksmith.address,
-#             "contact_number": locksmith.contact_number,
-#             "latitude": locksmith.latitude,
-#             "longitude": locksmith.longitude,
-#             "reputation_score": str(locksmith.reputation_score),  # Convert Decimal to string for JSON
-#             "pcc_file": locksmith.pcc_file.url if locksmith.pcc_file else None,
-#             "license_file": locksmith.license_file.url if locksmith.license_file else None,
-#             "photo": locksmith.photo.url if locksmith.photo else None,
-#             "is_verified": locksmith.is_verified,
-#             "is_approved": locksmith.is_approved,
-#             "created_at": locksmith.created_at.strftime('%Y-%m-%d %H:%M:%S') if hasattr(locksmith, 'created_at') else None,
-#             "updated_at": locksmith.updated_at.strftime('%Y-%m-%d %H:%M:%S') if hasattr(locksmith, 'updated_at') else None
-#         }
-
-#         return Response({
-#             'status': 'Locksmith details verified and approved',
-#             'locksmith_data': locksmith_data
-#         })
-
-#     @action(detail=True, methods=['put'], permission_classes=[IsAdmin])
-#     def reject_locksmith(self, request, pk=None):
-#         locksmith = self.get_object()
-#         locksmith.is_verified = False
-#         locksmith.is_approved = False
-#         locksmith.save()
-#         locksmith_data = {
-#             "id": locksmith.id,
-#             "user": {
-#                 "id": locksmith.user.id,
-#                 "username": locksmith.user.username,
-#                 "full_name": locksmith.user.get_full_name(),
-#                 "email": locksmith.user.email
-#             },
-#             "service_area": locksmith.service_area,
-#             "address": locksmith.address,
-#             "contact_number": locksmith.contact_number,
-#             "latitude": locksmith.latitude,
-#             "longitude": locksmith.longitude,
-#             "reputation_score": str(locksmith.reputation_score),  # Convert Decimal to string for JSON
-#             "pcc_file": locksmith.pcc_file.url if locksmith.pcc_file else None,
-#             "license_file": locksmith.license_file.url if locksmith.license_file else None,
-#             "photo": locksmith.photo.url if locksmith.photo else None,
-#             "is_verified": locksmith.is_verified,
-#             "is_approved": locksmith.is_approved,
-#             "created_at": locksmith.created_at.strftime('%Y-%m-%d %H:%M:%S') if hasattr(locksmith, 'created_at') else None,
-#             "updated_at": locksmith.updated_at.strftime('%Y-%m-%d %H:%M:%S') if hasattr(locksmith, 'updated_at') else None
-#         }
-
-#         return Response({
-#             'status': 'locksmith details rejected',
-#             'locksmith_data': locksmith_data
-#         })
-
-
-#     @action(detail=True, methods=['get'], permission_classes=[IsAdmin])
-#     def verify_locksmith_details(self, request, pk=None):
-#         locksmith = self.get_object()
-
-#         locksmith_data = {
-#             "id": locksmith.id,
-#             "user": {
-#                 "id": locksmith.user.id,
-#                 "username": locksmith.user.username,
-#                 "full_name": locksmith.user.get_full_name(),
-#                 "email": locksmith.user.email
-#             },
-#             "service_area": locksmith.service_area,
-#             "address": locksmith.address,
-#             "contact_number": locksmith.contact_number,
-#             "latitude": locksmith.latitude,
-#             "longitude": locksmith.longitude,
-#             "reputation_score": str(locksmith.reputation_score),  # Convert Decimal to string for JSON
-#             "pcc_file": locksmith.pcc_file.url if locksmith.pcc_file else None,
-#             "license_file": locksmith.license_file.url if locksmith.license_file else None,
-#             "photo": locksmith.photo.url if locksmith.photo else None,
-#             "is_verified": locksmith.is_verified,
-#             "is_approved": locksmith.is_approved,
-#             "created_at": locksmith.created_at.strftime('%Y-%m-%d %H:%M:%S') if hasattr(locksmith, 'created_at') else None,
-#             "updated_at": locksmith.updated_at.strftime('%Y-%m-%d %H:%M:%S') if hasattr(locksmith, 'updated_at') else None
-#         }
-
-#         return Response(locksmith_data)
-
 
 
 class LoginView(APIView):
@@ -459,60 +325,6 @@ class LoginView(APIView):
 
         return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
 
-# class LoginView(APIView):
-#     permission_classes = [AllowAny]
-
-#     def post(self, request):
-#         username = request.data.get('username')
-#         password = request.data.get('password')
-#         otp_code = request.data.get('otp_code', None)
-
-#         user = authenticate(username=username, password=password)
-#         if user is not None:
-#             # Verify OTP if TOTP is enabled
-#             if user.totp_secret and (not otp_code or not user.verify_totp(otp_code, valid_window=1)):
-#                 return Response({'error': 'Invalid OTP'}, status=status.HTTP_401_UNAUTHORIZED)
-
-#             refresh = RefreshToken.for_user(user)
-
-#             # Check user role
-#             if user.role == 'admin':
-#                 return Response({
-#                     'message': 'Admin login successful',
-#                     'user_id': user.id,
-#                     'username': user.username,
-#                     'role': user.role,
-#                     'access': str(refresh.access_token),
-#                     'refresh': str(refresh)
-#                 }, status=status.HTTP_200_OK)
-
-#             elif user.role == 'locksmith':
-#                 try:
-#                     locksmith = Locksmith.objects.get(user=user)
-#                     return Response({
-#                         'message': 'Login successful',
-#                         'user_id': user.id,
-#                         'username': user.username,
-#                         'role': user.role,
-#                         'is_verified': locksmith.is_verified,
-#                         'is_approved': locksmith.is_approved,
-#                         'access': str(refresh.access_token),
-#                         'refresh': str(refresh)
-#                     }, status=status.HTTP_200_OK)
-#                 except Locksmith.DoesNotExist:
-#                     return Response({'error': 'Locksmith record not found'}, status=status.HTTP_401_UNAUTHORIZED)
-
-#             elif user.role == 'customer':
-#                 return Response({
-#                     'message': 'Customer login successful',
-#                     'user_id': user.id,
-#                     'username': user.username,
-#                     'role': user.role,
-#                     'access': str(refresh.access_token),
-#                     'refresh': str(refresh)
-#                 }, status=status.HTTP_200_OK)
-
-#         return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
 
 
 # Custom Permissions
@@ -563,17 +375,6 @@ class CarKeyDetailsViewSet(viewsets.ModelViewSet):
     serializer_class = CarKeyDetailsSerializer
     permission_classes = [IsAdmin]  # Only Admin can manage car key details
 
-# class ServiceViewSet(viewsets.ModelViewSet):
-#     queryset = LocksmithService.objects.all()
-#     serializer_class = LocksmithServiceSerializer
-#     # permission_classes=[IsAdminOrCustomer]
-
-#     @action(detail=False, methods=['get'], permission_classes=[IsAdmin])
-#     def platform_settings(self, request):
-#         # Returns platform settings like commission percentage
-#         platform_settings = AdminSettings.objects.first()
-#         return Response({'commission_percentage': platform_settings.commission_percentage, 'platform_status': platform_settings.platform_status})
-
 
 
 class AdminLocksmithServiceApprovalViewSet(viewsets.ViewSet):
@@ -608,7 +409,7 @@ class AdminLocksmithServiceViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
     
     
-    @action(detail=False, methods=['get'], permission_classes=[IsCustomer])
+    @action(detail=False, methods=['get'], permission_classes=[AllowAny])
     def services_to_customer(self, request):
         """Get all approved locksmith services, optionally filtered by service type and sorted by distance."""
 
@@ -761,47 +562,7 @@ class ServiceViewSet(viewsets.ModelViewSet):
             )
     
     
-    # def perform_create(self, serializer):
-    #     """Automatically assign the logged-in locksmith and calculate total price."""
-    #     user = self.request.user
 
-    #     # Ensure user has an associated Locksmith account
-    #     if not hasattr(user, "locksmith"):
-    #         raise serializers.ValidationError({"error": "User is not associated with a locksmith account."})
-
-    #     locksmith = user.locksmith  # Now safe to access
-
-    #     # Get admin commission settings
-    #     admin_settings = AdminSettings.objects.first()
-    #     if not admin_settings:
-    #         raise serializers.ValidationError({"error": "Admin settings not configured."})
-
-    #     # Fetch commission settings
-    #     commission_amount = admin_settings.commission_amount if admin_settings else Decimal("0")
-    #     percentage = admin_settings.percentage if admin_settings else Decimal("0")
-
-    #     # Convert custom_price to Decimal
-    #     custom_price = serializer.validated_data.get("custom_price", 0)
-    #     custom_price = Decimal(str(custom_price))
-
-    #     # Calculate percentage amount
-    #     percentage_amount = (custom_price * percentage) / Decimal("100")
-
-    #     # **Fix: Ensure correct formula**
-    #     total_price = custom_price + percentage_amount + commission_amount  # ✅ Correct formula
-
-    #     # Debugging print statements (Check Logs)
-    #     print(f"Custom Price: {custom_price}")
-    #     print(f"Percentage ({percentage}%): {percentage_amount}")
-    #     print(f"Commission Amount: {commission_amount}")
-    #     print(f"Total Price Calculated: {total_price}")
-
-    #     # Save service with calculated total price
-    #     serializer.save(
-    #         locksmith=locksmith,
-    #         total_price=total_price,
-    #         approved=False
-    #     )
 
 class TransactionViewSet(viewsets.ModelViewSet):
     queryset = Transaction.objects.all()
@@ -1005,43 +766,7 @@ class CustomerServiceRequestViewSet(viewsets.ModelViewSet):
     
     
     
-    
-    
-    
-    
-# class BookingViewSet(viewsets.ModelViewSet):
-#     queryset = Booking.objects.all()
-#     serializer_class = BookingSerializer
-#     permission_classes = [permissions.IsAuthenticated]
-
-#     def get_queryset(self):
-#         """Filter bookings so locksmiths see only their own bookings"""
-#         user = self.request.user
-#         if hasattr(user, 'locksmith'):  # Ensure the user is a locksmith
-#             return Booking.objects.filter(locksmith_service__locksmith=user.locksmith)
-#         return Booking.objects.filter(customer=user)  # Customers see their bookings
-
-#     def perform_create(self, serializer):
-#         """Customers book a locksmith service"""
-#         serializer.save(customer=self.request.user)
-
-#     @action(detail=True, methods=['post'])
-#     def complete(self, request, pk=None):
-#         """Locksmith marks booking as completed"""
-#         booking = self.get_object()
-#         if booking.locksmith_service.locksmith.user != request.user:
-#             return Response({'error': 'Permission denied'}, status=403)
-#         booking.complete()
-#         return Response({'status': 'Booking completed'})
-
-#     @action(detail=True, methods=['post'])
-#     def cancel(self, request, pk=None):
-#         """Customer cancels the booking"""
-#         booking = self.get_object()
-#         if booking.customer != request.user:
-#             return Response({'error': 'Permission denied'}, status=403)
-#         booking.cancel()
-#         return Response({'status': 'Booking canceled'})
+   
     
     
     
@@ -1082,7 +807,7 @@ class LocksmithViewSet(viewsets.ModelViewSet):
     def send_verification_email(self, locksmith):
         """✅ Sends email notification when locksmith gets verified"""
         subject = "Your Locksmith Account is Verified!"
-        from_email = "accounts@lockquick.com.au"  # Replace with your email
+        from_email = "contact@lockquick.com.au"  # Replace with your email
         recipient_list = [locksmith.user.email]
 
         # Render HTML email template
@@ -1121,7 +846,7 @@ class LocksmithViewSet(viewsets.ModelViewSet):
     def send_rejection_email(self, locksmith):
         """❌ Sends email notification when locksmith gets rejected"""
         subject = "Your Locksmith Application Has Been Rejected"
-        from_email = "accounts@lockquick.com.au"  # Replace with your email
+        from_email = "contact@lockquick.com.au"  # Replace with your email
         recipient_list = [locksmith.user.email]
 
         # Render HTML email template
@@ -1567,40 +1292,6 @@ def get_mcc_code(request):
     except stripe.error.StripeError as e:
         return JsonResponse({"error": str(e)}, status=400)
     
-    
-    
-    
-    
-
-# stripe.api_key = settings.STRIPE_SECRET_KEY    
-# @csrf_exempt
-# def update_mcc(request):
-#     if request.method == "POST":
-#         try:
-#             # Get request data
-#             data = json.loads(request.body)
-#             account_id = data.get("account_id")  # Stripe Account ID
-
-#             if not account_id:
-#                 return JsonResponse({"error": "Account ID is required"}, status=400)
-
-#             # Update business profile MCC
-#             updated_account = stripe.Account.modify(
-#                 account_id,
-#                 business_profile={"mcc": "7699"}
-#             )
-
-#             return JsonResponse({
-#                 "message": "MCC updated successfully",
-#                 "updated_mcc": updated_account["business_profile"]["mcc"]
-#             }, status=200)
-
-#         except stripe.error.StripeError as e:
-#             return JsonResponse({"error": str(e)}, status=400)
-#         except Exception as e:
-#             return JsonResponse({"error": "An unexpected error occurred: " + str(e)}, status=500)
-
-
 
 
 
@@ -1615,3 +1306,208 @@ class ContactMessageViewSet(viewsets.ModelViewSet):
         subject = "Thank you for contacting us!"
         message = f"Hello {instance.name},\n\nWe received your message: {instance.message}\n\nWe will get back to you soon!"
         send_mail(subject, message, 'your-email@example.com', [instance.email])
+        
+        
+        
+        
+        
+        
+        
+        
+        
+    
+from django.contrib.auth import get_user_model
+from django.core.mail import send_mail
+from rest_framework import viewsets, status
+from rest_framework.response import Response
+import random
+import pyotp
+from rest_framework.permissions import AllowAny 
+import qrcode
+import base64
+from io import BytesIO
+
+User = get_user_model()
+
+class ForgotPasswordViewSet(viewsets.ModelViewSet):
+    """
+    A ViewSet for handling Forgot Password functionality.
+    """
+    queryset = User.objects.all()
+    http_method_names = ['post']
+    permission_classes = [AllowAny] # Allow only POST requests
+
+    def create(self, request, *args, **kwargs):
+        action = request.data.get('action')
+
+        if action == 'forgot_password':
+            return self.forgot_password(request)
+        elif action == 'reset_password':
+            return self.reset_password(request)
+        else:
+            return Response({'error': 'Invalid action'}, status=status.HTTP_400_BAD_REQUEST)
+
+    def forgot_password(self, request):
+        """
+        Generates and sends OTP to the user's email for password reset.
+        """
+        email = request.data.get('email')
+        if not email:
+            return Response({'error': 'Email is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        otp = str(random.randint(100000, 999999))  # Generate a 6-digit OTP
+        user.otp_code = otp  # Store in otp_code field (not totp_secret)
+        user.save()
+
+        send_mail(
+            'Password Reset OTP',
+            f'Your OTP code is {otp}',
+            'contact@lockquick.com.au',
+            [email],
+            fail_silently=False,
+        )
+
+        return Response({'message': 'OTP sent to your email', 'user_id': user.id}, status=status.HTTP_200_OK)
+
+    def reset_password(self, request):
+        
+        email = request.data.get('email')
+        otp = request.data.get('otp')
+        new_password = request.data.get('new_password')
+
+        if not (email and otp and new_password):
+            return Response({'error': 'All fields are required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        if user.otp_code != otp:
+            return Response({'error': 'Invalid OTP'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # ✅ Reset Password
+        user.set_password(new_password)
+        user.otp_code = None  # Clear OTP after reset
+
+        # ✅ Generate a new TOTP secret & update it in the database
+        user.totp_secret = pyotp.random_base32()
+        user.save()
+
+        # ✅ Generate the provisioning URI (Google Authenticator)
+        totp = pyotp.TOTP(user.totp_secret)
+        qr_code_url = totp.provisioning_uri(name=user.email, issuer_name="LockQuick")
+
+        # ✅ Generate QR Code Image (Base64)
+        qr = qrcode.make(qr_code_url)
+        buffer = BytesIO()
+        qr.save(buffer, format="PNG")
+        qr_base64 = base64.b64encode(buffer.getvalue()).decode()
+
+        return Response({
+            'message': 'Password reset successful',
+            'user': {
+                'id': user.id,
+                'email': user.email,
+                'username': user.username,
+                'totp_enabled': True,
+                'totp_secret': user.totp_secret,  # Send only if necessary
+                'totp_qr_code': qr_base64,  # Base64-encoded QR code image
+                'totp_qr_code_url': qr_code_url,  # URL for manual entry
+            }
+        }, status=status.HTTP_200_OK)
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+from dj_rest_auth.registration.views import SocialLoginView
+from .serializers import CustomSocialLoginSerializer
+from allauth.socialaccount.providers.google.views import GoogleOAuth2Adapter
+from allauth.socialaccount.providers.facebook.views import FacebookOAuth2Adapter
+from dj_rest_auth.registration.views import SocialLoginView
+from allauth.socialaccount.providers.oauth2.client import OAuth2Client
+
+class CustomGoogleLogin(SocialLoginView):
+    adapter_class = GoogleOAuth2Adapter
+    callback_url = "https://lockquick.com.au/accounts/google/login/callback/"
+    serializer_class = CustomSocialLoginSerializer
+
+class CustomFacebookLogin(SocialLoginView):
+    serializer_class = CustomSocialLoginSerializer
+    adapter_class = FacebookOAuth2Adapter
+    
+    
+    
+    
+    
+    
+    
+    
+    
+import base64
+import hashlib
+import hmac
+import json
+
+from django.conf import settings
+from django.http import JsonResponse, HttpResponseBadRequest
+from django.views.decorators.csrf import csrf_exempt
+
+def base64_url_decode(input_str):
+    input_str += '=' * (-len(input_str) % 4)
+    return base64.urlsafe_b64decode(input_str.encode())
+
+@csrf_exempt
+def facebook_data_deletion(request):
+    if request.method == 'POST':
+        signed_request = request.POST.get('signed_request')
+        if not signed_request:
+            return HttpResponseBadRequest("Missing signed_request")
+
+        encoded_sig, payload = signed_request.split('.', 1)
+
+        # Decode data
+        sig = base64_url_decode(encoded_sig)
+        data = json.loads(base64_url_decode(payload))
+
+        # Verify the algorithm
+        if data.get('algorithm', '').upper() != 'HMAC-SHA256':
+            return HttpResponseBadRequest("Invalid algorithm")
+
+        # Validate signature
+        expected_sig = hmac.new(
+            settings.FACEBOOK_APP_SECRET.encode(),
+            msg=payload.encode(),
+            digestmod=hashlib.sha256
+        ).digest()
+
+        if not hmac.compare_digest(sig, expected_sig):
+            return HttpResponseBadRequest("Invalid signature")
+
+        fb_user_id = data.get('user_id')
+
+        # Delete user data from your database (example)
+        from api.models import YourUserModel
+        YourUserModel.objects.filter(facebook_id=fb_user_id).delete()
+
+        response = {
+            "url": "https://lockquick.com.au/deletion-confirmation/",
+            "confirmation_code": fb_user_id
+        }
+        return JsonResponse(response)
+
+    return HttpResponseBadRequest("Only POST allowed")

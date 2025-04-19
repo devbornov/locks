@@ -7,6 +7,8 @@ from decimal import Decimal
 from django.conf import settings
 from rest_framework import serializers
 from .models import User, Locksmith, Customer, CustomerServiceRequest , CarKeyDetails, Service, Transaction, ServiceRequest, ServiceBid, AdminSettings, PlatformStatistics,LocksmithServices,AdminService , Booking , ContactMessage
+from dj_rest_auth.registration.serializers import SocialLoginSerializer
+from allauth.socialaccount.models import SocialAccount
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -431,3 +433,34 @@ class ContactMessageSerializer(serializers.ModelSerializer):
     class Meta:
         model = ContactMessage
         fields = '__all__'
+        
+        
+        
+        
+        
+        
+class CustomSocialLoginSerializer(SocialLoginSerializer):
+    def validate(self, attrs):
+        attrs['callback_url'] = settings.SOCIAL_AUTH_GOOGLE_CALLBACK_URL
+        return super().validate(attrs)
+
+    def save(self, request):
+        user = super().save(request)
+
+        if user.role == 'admin':
+            raise serializers.ValidationError("Admins cannot sign up via social login.")
+
+        # Update email from Google data
+        social_account = SocialAccount.objects.get(user=user)
+        user.email = social_account.extra_data.get('email', user.email)
+        user.save()
+
+        # Create profile based on role
+        if user.role == 'customer' and not hasattr(user, 'customer'):
+            Customer.objects.create(user=user)
+
+        if user.role == 'locksmith' and not hasattr(user, 'locksmith'):
+            Locksmith.objects.create(user=user)
+
+        return user
+    

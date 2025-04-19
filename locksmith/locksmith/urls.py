@@ -19,8 +19,18 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.urls import path , include
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
-from api.views import CreateAdminUserView, UserRegisterView, LocksmithRegisterView, LoginView,LocksmithProfileView , LogoutView , get_mcc_code 
+from api.views import CreateAdminUserView, UserRegisterView, LocksmithRegisterView, LoginView,LocksmithProfileView , LogoutView , facebook_data_deletion , get_mcc_code ,CustomFacebookLogin,CustomGoogleLogin
 from api.views import stripe_webhook
+from dj_rest_auth.registration.views import SocialLoginView
+from allauth.socialaccount.providers.google.views import GoogleOAuth2Adapter
+from allauth.socialaccount.providers.facebook.views import FacebookOAuth2Adapter
+
+
+class GoogleLogin(SocialLoginView):
+    adapter_class = GoogleOAuth2Adapter
+
+class FacebookLogin(SocialLoginView):
+    adapter_class = FacebookOAuth2Adapter
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -36,7 +46,18 @@ urlpatterns = [
     path("stripe-webhook/", stripe_webhook, name="stripe-webhook"),
     path("logout/", LogoutView.as_view(), name="logout"),
     path("get-mcc/", get_mcc_code, name="get_mcc"),
+    # path("auth/social/", include("allauth.socialaccount.urls")),
     # path("update-mcc/", update_mcc, name="update_mcc"),
+    
+
+
+
+    path('api/auth/google/', CustomGoogleLogin.as_view(), name='google_login'),
+    path('api/auth/facebook/', CustomFacebookLogin.as_view(), name='facebook_login'),
+    path('facebook-data-deletion/', facebook_data_deletion, name='facebook_data_deletion'),
+
+
+    
 ]
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
