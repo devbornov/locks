@@ -155,28 +155,28 @@ STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 #     }
 # }
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'locksmith1',
-        'USER': 'root',
-        'PASSWORD': 'root',
-        'HOST': 'localhost',  # This matches the name of the db service in docker-compose.yml
-        'PORT': '3308',
-    }
-}
-
-
 # DATABASES = {
 #     'default': {
 #         'ENGINE': 'django.db.backends.mysql',
 #         'NAME': 'locksmith1',
 #         'USER': 'root',
-#         'PASSWORD': 'Db@2025#Lockquick',
-#         'HOST': 'localhost,  # Change for RDS
-#         'PORT': '3306',  # Default MySQL port
+#         'PASSWORD': 'root',
+#         'HOST': 'localhost',  # This matches the name of the db service in docker-compose.yml
+#         'PORT': '3308',
 #     }
 # }
+
+
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'locksmith1',
+        'USER': 'root',
+        'PASSWORD': 'Db@2025#Lockquick',
+        'HOST': 'localhost',  # Change for RDS
+        'PORT': '3306',  # Default MySQL port
+    }
+}
 
 
 
