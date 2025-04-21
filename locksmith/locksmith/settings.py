@@ -155,28 +155,28 @@ STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 #     }
 # }
 
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.mysql',
-#         'NAME': 'locksmith1',
-#         'USER': 'root',
-#         'PASSWORD': 'root',
-#         'HOST': 'localhost',  # This matches the name of the db service in docker-compose.yml
-#         'PORT': '3308',
-#     }
-# }
-
-
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'locksmith1',
         'USER': 'root',
-        'PASSWORD': 'Db@2025#Lockquick',
-        'HOST': 'localhost',  # Change for RDS
-        'PORT': '3306',  # Default MySQL port
+        'PASSWORD': 'root',
+        'HOST': 'localhost',  # This matches the name of the db service in docker-compose.yml
+        'PORT': '3306',
     }
 }
+
+
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.mysql',
+#         'NAME': 'locksmith1',
+#         'USER': 'root',
+#         'PASSWORD': 'Db@2025#Lockquick',
+#         'HOST': 'localhost',  # Change for RDS
+#         'PORT': '3306',  # Default MySQL port
+#     }
+# }
 
 
 
@@ -322,23 +322,11 @@ REST_USE_JWT = True
 JWT_AUTH_COOKIE = 'access'
 JWT_AUTH_REFRESH_COOKIE = 'refresh'
 
-# SOCIALACCOUNT_PROVIDERS = {
-#     'google': {
-#         'SCOPE': [
-#             'profile',
-#             'email',
-#         ],
-#         'AUTH_PARAMS': {
-#             'access_type': 'online',
-#         },
-#     },
-#     'facebook': {
-#         'METHOD': 'oauth2',
-#         'SCOPE': ['email', 'public_profile'],
-#         'FIELDS': ['id', 'email', 'name'],
-#     },
-# }
-
+ACCOUNT_USER_MODEL_USERNAME_FIELD = None
+ACCOUNT_EMAIL_REQUIRED = True
+ACCOUNT_USERNAME_REQUIRED = False
+SOCIALACCOUNT_QUERY_EMAIL = True
+ACCOUNT_AUTHENTICATION_METHOD = 'email'
 
 SITE_URL = "https://lockquick.com.au"
 FRONTEND_URL = "https://lockquick.com.au/accounts/google/login/callback/"
@@ -361,4 +349,5 @@ SOCIAL_AUTH_GOOGLE_CALLBACK_URL = "https://lockquick.com.au/accounts/google/logi
 
 
 
-# SOCIALACCOUNT_ADAPTER = "api.adapters.CustomSocialAccountAdapter"
+SOCIALACCOUNT_ADAPTER = 'api.adapters.MySocialAccountAdapter'
+

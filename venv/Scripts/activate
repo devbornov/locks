@@ -38,7 +38,7 @@ deactivate () {
 # unset irrelevant variables
 deactivate nondestructive
 
-VIRTUAL_ENV="C:\Users\Bornov Engineering\Desktop\locksmith_backend\locksmithbackend\venv"
+VIRTUAL_ENV="C:\Users\sarat\Desktop\backend\lockquick\venv"
 export VIRTUAL_ENV
 
 _OLD_VIRTUAL_PATH="$PATH"

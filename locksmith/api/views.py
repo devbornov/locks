@@ -26,8 +26,8 @@ from django.http import JsonResponse
 from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
-from django.contrib.gis.geos import Point
-from django.contrib.gis.db.models.functions import Distance
+# from django.contrib.gis.geos import Point
+# from django.contrib.gis.db.models.functions import Distance
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 from geopy.distance import geodesic
@@ -1511,3 +1511,12 @@ class CustomFacebookLogin(SocialLoginView):
 #         return JsonResponse(response)
 
 #     return HttpResponseBadRequest("Only POST allowed")
+
+
+
+
+
+
+
+class GoogleLoginAPI(SocialLoginView):
+    adapter_class = GoogleOAuth2Adapter

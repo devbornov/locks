@@ -7,6 +7,11 @@ from .views import (
     AdminSettingsViewSet,AllLocksmiths,CustomersViewSet,AdmincomissionViewSet,CustomerServiceRequestViewSet,Approvalverification, BookingViewSet , 
     AdminLocksmithServiceViewSet,AdminLocksmithServiceApprovalViewSet , CustomerProfileViewSet , ContactMessageViewSet , ForgotPasswordViewSet
 )
+from api.views import GoogleLoginAPI
+
+
+
+
 
 # Initialize Default Router
 router = DefaultRouter()
@@ -36,4 +41,5 @@ router.register(r'forgot-password', ForgotPasswordViewSet, basename='forgot-pass
 # URL patterns
 urlpatterns = [
     path('', include(router.urls)),
+    
 ]
