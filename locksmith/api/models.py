@@ -80,10 +80,10 @@ class Locksmith(models.Model):
     is_approved = models.BooleanField(default=False)
     reputation_score = models.DecimalField(max_digits=5, decimal_places=2, default=0.0)
     latitude = models.DecimalField(
-        max_digits=9, decimal_places=6, null=True, blank=True, validators=[validate_latitude]
+        max_digits=20, decimal_places=15, null=True, blank=True, validators=[validate_latitude]
     )
     longitude = models.DecimalField(
-        max_digits=9, decimal_places=6, null=True, blank=True, validators=[validate_longitude]
+        max_digits=20, decimal_places=15, null=True, blank=True, validators=[validate_longitude]
     )
     address = models.TextField(default="")
     contact_number = models.CharField(max_length=15, blank=True, null=True, default="")

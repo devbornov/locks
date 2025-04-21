@@ -912,8 +912,8 @@ class LocksmithViewSet(viewsets.ModelViewSet):
 
         account_link = stripe.AccountLink.create(
             account=locksmith.stripe_account_id,
-            refresh_url="http://localhost:8000/reauth",
-            return_url="http://localhost:8000/dashboard",
+            refresh_url="http://localhost:3000/stripe-onboard",
+            return_url="http://localhost:3000/lock-dashboard",
             type="account_onboarding",
         )
 
@@ -1458,56 +1458,56 @@ class CustomFacebookLogin(SocialLoginView):
     
     
     
-import base64
-import hashlib
-import hmac
-import json
+# import base64
+# import hashlib
+# import hmac
+# import json
 
-from django.conf import settings
-from django.http import JsonResponse, HttpResponseBadRequest
-from django.views.decorators.csrf import csrf_exempt
+# from django.conf import settings
+# from django.http import JsonResponse, HttpResponseBadRequest
+# from django.views.decorators.csrf import csrf_exempt
 
-def base64_url_decode(input_str):
-    input_str += '=' * (-len(input_str) % 4)
-    return base64.urlsafe_b64decode(input_str.encode())
+# def base64_url_decode(input_str):
+#     input_str += '=' * (-len(input_str) % 4)
+#     return base64.urlsafe_b64decode(input_str.encode())
 
-@csrf_exempt
-def facebook_data_deletion(request):
-    if request.method == 'POST':
-        signed_request = request.POST.get('signed_request')
-        if not signed_request:
-            return HttpResponseBadRequest("Missing signed_request")
+# @csrf_exempt
+# def facebook_data_deletion(request):
+#     if request.method == 'POST':
+#         signed_request = request.POST.get('signed_request')
+#         if not signed_request:
+#             return HttpResponseBadRequest("Missing signed_request")
 
-        encoded_sig, payload = signed_request.split('.', 1)
+#         encoded_sig, payload = signed_request.split('.', 1)
 
-        # Decode data
-        sig = base64_url_decode(encoded_sig)
-        data = json.loads(base64_url_decode(payload))
+#         # Decode data
+#         sig = base64_url_decode(encoded_sig)
+#         data = json.loads(base64_url_decode(payload))
 
-        # Verify the algorithm
-        if data.get('algorithm', '').upper() != 'HMAC-SHA256':
-            return HttpResponseBadRequest("Invalid algorithm")
+#         # Verify the algorithm
+#         if data.get('algorithm', '').upper() != 'HMAC-SHA256':
+#             return HttpResponseBadRequest("Invalid algorithm")
 
-        # Validate signature
-        expected_sig = hmac.new(
-            settings.FACEBOOK_APP_SECRET.encode(),
-            msg=payload.encode(),
-            digestmod=hashlib.sha256
-        ).digest()
+#         # Validate signature
+#         expected_sig = hmac.new(
+#             settings.FACEBOOK_APP_SECRET.encode(),
+#             msg=payload.encode(),
+#             digestmod=hashlib.sha256
+#         ).digest()
 
-        if not hmac.compare_digest(sig, expected_sig):
-            return HttpResponseBadRequest("Invalid signature")
+#         if not hmac.compare_digest(sig, expected_sig):
+#             return HttpResponseBadRequest("Invalid signature")
 
-        fb_user_id = data.get('user_id')
+#         fb_user_id = data.get('user_id')
 
-        # Delete user data from your database (example)
-        from api.models import YourUserModel
-        YourUserModel.objects.filter(facebook_id=fb_user_id).delete()
+#         # Delete user data from your database (example)
+#         from api.models import User
+#         User.objects.filter(facebook_id=fb_user_id).delete()
 
-        response = {
-            "url": "https://lockquick.com.au/deletion-confirmation/",
-            "confirmation_code": fb_user_id
-        }
-        return JsonResponse(response)
+#         response = {
+#             "url": "https://lockquick.com.au/deletion-confirmation/",
+#             "confirmation_code": fb_user_id
+#         }
+#         return JsonResponse(response)
 
-    return HttpResponseBadRequest("Only POST allowed")
+#     return HttpResponseBadRequest("Only POST allowed")

@@ -370,7 +370,10 @@ class LocksmithServiceSerializer(serializers.ModelSerializer):
             car_key_details=car_key_details  # Ensure it is assigned
         )
 
-        print("Locksmith Service Created:", locksmith_service.id, "with Car Key ID:", locksmith_service.car_key_details.id)  # Debugging
+        print(
+    "Locksmith Service Created:", locksmith_service.id,
+    "with Car Key ID:", locksmith_service.car_key_details.id if locksmith_service.car_key_details else "No Car Key"
+        ) # Debugging
 
         return locksmith_service
 

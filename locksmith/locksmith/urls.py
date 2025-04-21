@@ -19,7 +19,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.urls import path , include
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
-from api.views import CreateAdminUserView, UserRegisterView, LocksmithRegisterView, LoginView,LocksmithProfileView , LogoutView , facebook_data_deletion , get_mcc_code ,CustomFacebookLogin,CustomGoogleLogin
+from api.views import CreateAdminUserView, UserRegisterView, LocksmithRegisterView, LoginView,LocksmithProfileView , LogoutView  , get_mcc_code ,CustomFacebookLogin,CustomGoogleLogin
 from api.views import stripe_webhook
 from dj_rest_auth.registration.views import SocialLoginView
 from allauth.socialaccount.providers.google.views import GoogleOAuth2Adapter
@@ -54,7 +54,7 @@ urlpatterns = [
 
     path('api/auth/google/', CustomGoogleLogin.as_view(), name='google_login'),
     path('api/auth/facebook/', CustomFacebookLogin.as_view(), name='facebook_login'),
-    path('facebook-data-deletion/', facebook_data_deletion, name='facebook_data_deletion'),
+    # path('facebook-data-deletion/', facebook_data_deletion, name='facebook_data_deletion'),
 
 
     
