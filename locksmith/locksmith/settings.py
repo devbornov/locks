@@ -173,7 +173,7 @@ DATABASES = {
         'NAME': 'locksmith1',
         'USER': 'root',
         'PASSWORD': 'Db@2025#Lockquick',
-        'HOST': 'localhost,  # Change for RDS
+        'HOST': 'localhost',  # Change for RDS
         'PORT': '3306',  # Default MySQL port
     }
 }
