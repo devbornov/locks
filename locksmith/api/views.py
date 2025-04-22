@@ -1560,10 +1560,13 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from firebase_admin import auth as firebase_auth
+from rest_framework.decorators import permission_classes
+from rest_framework.permissions import AllowAny
 
 User = get_user_model()
 
 @api_view(['POST'])
+@permission_classes([AllowAny])
 def google_login(request):
     id_token = request.data.get('token')
     role = request.data.get('role')
@@ -1573,30 +1576,24 @@ def google_login(request):
 
     try:
         decoded_token = firebase_auth.verify_id_token(id_token)
-        email = decoded_token.get('email')
-        username = decoded_token.get('name') or email.split('@')[0]
+        email = decoded_token['email']
+        username = decoded_token.get('name') or email.split("@")[0]
     except Exception as e:
         return Response({'error': 'Invalid or expired token'}, status=401)
 
-    if not email:
-        return Response({'error': 'Email not found in token'}, status=400)
-
+    # Get or create user
     user, created = User.objects.get_or_create(email=email, defaults={
         'username': username,
         'role': role,
     })
 
     if not created:
-        updated = False
+        # Update role if needed
         if user.role != role:
             user.role = role
-            updated = True
-        if user.username != username:
-            user.username = username
-            updated = True
-        if updated:
             user.save()
 
+    # Create JWT token
     refresh = RefreshToken.for_user(user)
 
     return Response({
@@ -1606,6 +1603,6 @@ def google_login(request):
             'id': user.id,
             'username': user.username,
             'email': user.email,
-            'role': user.role,
+            'role': user.role
         }
     })
