@@ -1555,54 +1555,133 @@ class GoogleLoginWithRole(APIView):
         
         
         
-from django.contrib.auth import get_user_model
-from rest_framework.decorators import api_view
+# import firebase_admin
+# from firebase_admin import credentials, auth
+# from rest_framework.response import Response
+# from rest_framework.decorators import api_view, permission_classes
+# from rest_framework.permissions import AllowAny
+
+# # Initialize Firebase Admin SDK
+# cred = credentials.Certificate("C:/Users/Bornov Engineering/Desktop/back/locks/locksmith/secrets/lockquick-a63b9-firebase-adminsdk-fbsvc-678defaa16.json")
+# if not firebase_admin._apps:
+#     firebase_admin.initialize_app(cred)
+
+# @api_view(['POST'])
+# @permission_classes([AllowAny])
+# def google_login(request):
+#     # Get token from the request body
+#     id_token = request.data.get('token')
+
+#     if not id_token:
+#         return Response({'error': 'Token required'}, status=400)
+
+#     try:
+#         # Verify Firebase token
+#         decoded_token = auth.verify_id_token(id_token)
+#         email = decoded_token['email']
+#         username = decoded_token.get('name') or email.split("@")[0]
+#         print("Decoded Token:", decoded_token)
+
+#         # Here you can handle user creation or updates, etc.
+#         return Response({'message': 'Token verified successfully', 'decoded_token': decoded_token})
+
+#     except auth.ExpiredIdTokenError:
+#         return Response({'error': 'Token expired'}, status=401)
+#     except auth.RevokedIdTokenError:
+#         return Response({'error': 'Token has been revoked'}, status=401)
+#     except Exception as e:
+#         return Response({'error': 'Invalid token', 'message': str(e)}, status=401)
+
+
+
+
+
+
+
+
+import firebase_admin
+from firebase_admin import credentials, auth
 from rest_framework.response import Response
-from rest_framework_simplejwt.tokens import RefreshToken
-from firebase_admin import auth as firebase_auth
-from rest_framework.decorators import permission_classes
+from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
+from django.contrib.auth import get_user_model  # Use get_user_model to fetch custom user model
+import jwt
+import datetime
+
+# Initialize Firebase Admin SDK
+cred = credentials.Certificate("C:/Users/Bornov Engineering/Desktop/back/locks/locksmith/secrets/lockquick-a63b9-firebase-adminsdk-fbsvc-678defaa16.json")
+if not firebase_admin._apps:
+    firebase_admin.initialize_app(cred)
+
+# JWT secret key (use a more secure key for production)
+JWT_SECRET_KEY = "your-secret-key"
+
+def generate_access_token(user):
+    """Generate Access Token (valid for 1 hour)"""
+    payload = {
+        'user_id': user.id,
+        'username': user.username,
+        'email': user.email,
+        'role': user.role,
+        'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=1)  # Access token expires in 1 hour
+    }
+    return jwt.encode(payload, JWT_SECRET_KEY, algorithm='HS256')
+
+def generate_refresh_token(user):
+    """Generate Refresh Token (valid for 7 days)"""
+    payload = {
+        'user_id': user.id,
+        'username': user.username,
+        'email': user.email,
+        'role': user.role,
+        'exp': datetime.datetime.utcnow() + datetime.timedelta(days=7)  # Refresh token expires in 7 days
+    }
+    return jwt.encode(payload, JWT_SECRET_KEY, algorithm='HS256')
 
 User = get_user_model()
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def google_login(request):
+    # Get the token and role from the request body
     id_token = request.data.get('token')
-    role = request.data.get('role')
+    role = request.data.get('role', 'customer')  # Default role is 'customer'
 
-    if not id_token or not role:
-        return Response({'error': 'Token and role required'}, status=400)
+    if not id_token:
+        return Response({'error': 'Token required'}, status=400)
 
     try:
-        decoded_token = firebase_auth.verify_id_token(id_token)
+        # Verify Firebase token
+        decoded_token = auth.verify_id_token(id_token)
         email = decoded_token['email']
         username = decoded_token.get('name') or email.split("@")[0]
-    except Exception as e:
-        return Response({'error': 'Invalid or expired token'}, status=401)
 
-    # Get or create user
-    user, created = User.objects.get_or_create(email=email, defaults={
-        'username': username,
-        'role': role,
-    })
+        # Check if the user exists or create a new one
+        user, created = User.objects.get_or_create(email=email, username=username)
 
-    if not created:
-        # Update role if needed
-        if user.role != role:
+        # If user is newly created or the role needs to be updated, set the role
+        if created or user.role != role:
             user.role = role
             user.save()
 
-    # Create JWT token
-    refresh = RefreshToken.for_user(user)
+        # Generate access and refresh tokens
+        access_token = generate_access_token(user)
+        refresh_token = generate_refresh_token(user)
 
-    return Response({
-        'refresh': str(refresh),
-        'access': str(refresh.access_token),
-        'user': {
-            'id': user.id,
-            'username': user.username,
-            'email': user.email,
-            'role': user.role
-        }
-    })
+        return Response({
+            'message': 'Token verified successfully',
+            'user': {
+                'username': user.username,
+                'email': user.email,
+                'role': user.role
+            },
+            'access_token': access_token,
+            'refresh_token': refresh_token
+        })
+
+    except auth.ExpiredIdTokenError:
+        return Response({'error': 'Token expired'}, status=401)
+    except auth.RevokedIdTokenError:
+        return Response({'error': 'Token has been revoked'}, status=401)
+    except Exception as e:
+        return Response({'error': 'Invalid token', 'message': str(e)}, status=401)
