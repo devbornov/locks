@@ -26,8 +26,8 @@ from django.http import JsonResponse
 from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
-# from django.contrib.gis.geos import Point
-# from django.contrib.gis.db.models.functions import Distance
+from django.contrib.gis.geos import Point
+from django.contrib.gis.db.models.functions import Distance
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 from geopy.distance import geodesic
@@ -1520,3 +1520,71 @@ class CustomFacebookLogin(SocialLoginView):
 
 class GoogleLoginAPI(SocialLoginView):
     adapter_class = GoogleOAuth2Adapter
+    
+    
+    
+class GoogleLoginWithRole(APIView):
+    def post(self, request, *args, **kwargs):
+        access_token = request.data.get("access_token")
+        role = request.data.get("role")
+
+        if not access_token:
+            raise ValidationError("Access token is required.")
+        
+        if role not in ['customer', 'locksmith']:
+            raise ValidationError("Invalid role. Role must be 'customer' or 'locksmith'.")
+        
+        # Call the existing logic for Google login, but include the role
+        google_adapter = GoogleOAuth2Adapter()
+        google_login = google_adapter.complete_login(request, access_token)
+        
+        # Pass the role through the sociallogin process
+        google_login.user.role = role  # Assign role to user
+        
+        # Save the user and proceed
+        google_login.save(request)
+        
+        # Respond with the user data and token
+        return Response({
+            "user": google_login.user.get_user_data(),
+            "token": google_login.user.auth_token.key  # Assuming you are using token authentication
+        })
+        
+        
+        
+        
+        
+        
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.response import Response
+from rest_framework.decorators import api_view
+from firebase_admin import auth as firebase_auth
+from .models import UserProfile
+
+@api_view(['POST'])
+def google_login(request):
+    id_token = request.data.get('token')
+    role = request.data.get('role')
+
+    if not id_token or not role:
+        return Response({'error': 'Token and role required'}, status=400)
+
+    try:
+        decoded_token = firebase_auth.verify_id_token(id_token)
+        email = decoded_token['email']
+    except Exception as e:
+        return Response({'error': 'Invalid token'}, status=401)
+
+    user_profile, created = UserProfile.objects.get_or_create(email=email)
+    user_profile.role = role
+    user_profile.save()
+
+    # Create JWT Token (for your backend)
+    refresh = RefreshToken.for_user(user_profile)
+
+    return Response({
+        'refresh': str(refresh),
+        'access': str(refresh.access_token),
+        'email': email,
+        'role': role
+    })

@@ -25,6 +25,7 @@ from dj_rest_auth.registration.views import SocialLoginView
 from allauth.socialaccount.providers.google.views import GoogleOAuth2Adapter
 from allauth.socialaccount.providers.facebook.views import FacebookOAuth2Adapter
 from api.views import GoogleLoginAPI
+from api.views import GoogleLoginWithRole
 
 
 
@@ -61,6 +62,7 @@ urlpatterns = [
     path('auth/google/', GoogleLoginAPI.as_view(), name='google_login_api'),# Only if needed
     path('api/auth/google/', CustomGoogleLogin.as_view(), name='google_login'),
     path('api/auth/facebook/', CustomFacebookLogin.as_view(), name='facebook_login'),
+    path('auth/google/', GoogleLoginWithRole.as_view(), name='google_login_with_role'),
     # path('facebook-data-deletion/', facebook_data_deletion, name='facebook_data_deletion'),
 
 

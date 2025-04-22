@@ -158,11 +158,11 @@ STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'locksmith1',
+        'NAME': 'locksmith2',
         'USER': 'root',
         'PASSWORD': 'root',
         'HOST': 'localhost',  # This matches the name of the db service in docker-compose.yml
-        'PORT': '3306',
+        'PORT': '3308',
     }
 }
 
