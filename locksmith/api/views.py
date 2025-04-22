@@ -1555,11 +1555,14 @@ class GoogleLoginWithRole(APIView):
         
         
         
-from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework.response import Response
 from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from rest_framework_simplejwt.tokens import RefreshToken
 from firebase_admin import auth as firebase_auth
-from .models import UserProfile
+from django.contrib.auth import get_user_model
+from django.db import IntegrityError
+
+User = get_user_model()
 
 @api_view(['POST'])
 def google_login(request):
@@ -1572,19 +1575,32 @@ def google_login(request):
     try:
         decoded_token = firebase_auth.verify_id_token(id_token)
         email = decoded_token['email']
+        username = decoded_token.get('name') or email.split("@")[0]
     except Exception as e:
         return Response({'error': 'Invalid token'}, status=401)
 
-    user_profile, created = UserProfile.objects.get_or_create(email=email)
-    user_profile.role = role
-    user_profile.save()
+    # Get or create user
+    user, created = User.objects.get_or_create(email=email, defaults={
+        'username': username,
+        'role': role,
+    })
 
-    # Create JWT Token (for your backend)
-    refresh = RefreshToken.for_user(user_profile)
+    if not created:
+        # Update role if needed
+        if user.role != role:
+            user.role = role
+            user.save()
+
+    # Create JWT token
+    refresh = RefreshToken.for_user(user)
 
     return Response({
         'refresh': str(refresh),
         'access': str(refresh.access_token),
-        'email': email,
-        'role': role
+        'user': {
+            'id': user.id,
+            'username': user.username,
+            'email': user.email,
+            'role': user.role
+        }
     })
