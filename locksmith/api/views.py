@@ -1599,34 +1599,214 @@ class GoogleLoginWithRole(APIView):
 
 
 
+# import firebase_admin
+# from firebase_admin import credentials, auth
+# from rest_framework.response import Response
+# from rest_framework.decorators import api_view, permission_classes
+# from rest_framework.permissions import AllowAny
+# from django.contrib.auth import get_user_model
+# from rest_framework_simplejwt.tokens import RefreshToken  # ✅ Use SimpleJWT
+
+# # Initialize Firebase Admin SDK
+# cred = credentials.Certificate("C:/Users/Bornov Engineering/Desktop/back/locks/locksmith/secrets/lockquick-a63b9-firebase-adminsdk-fbsvc-678defaa16.json")
+# if not firebase_admin._apps:
+#     firebase_admin.initialize_app(cred)
+
+# User = get_user_model()
+
+# @api_view(['POST'])
+# @permission_classes([AllowAny])
+# def google_login(request):
+#     # Get the token and role from the request body
+#     id_token = request.data.get('token')
+#     role = request.data.get('role', 'customer')  # Default role is 'customer'
+
+#     if not id_token:
+#         return Response({'error': 'Token required'}, status=400)
+
+#     try:
+#         # Verify Firebase token
+#         decoded_token = auth.verify_id_token(id_token)
+#         email = decoded_token['email']
+#         username = decoded_token.get('name') or email.split("@")[0]
+
+#         # Check if the user exists or create a new one
+#         user, created = User.objects.get_or_create(email=email, defaults={'username': username})
+
+#         # If user is newly created or the role needs to be updated, set the role
+#         if created or user.role != role:
+#             user.role = role
+#             user.save()
+
+#         # ✅ Generate tokens using SimpleJWT
+#         refresh = RefreshToken.for_user(user)
+#         access_token = str(refresh.access_token)
+#         refresh_token = str(refresh)
+
+#         return Response({
+#             'message': 'Token verified successfully',
+#             'user': {
+#                 'id': user.id,
+#                 'username': user.username,
+#                 'email': user.email,
+#                 'role': user.role
+#             },
+#             'access_token': access_token,
+#             'refresh_token': refresh_token
+#         })
+
+#     except auth.ExpiredIdTokenError:
+#         return Response({'error': 'Token expired'}, status=401)
+#     except auth.RevokedIdTokenError:
+#         return Response({'error': 'Token has been revoked'}, status=401)
+#     except Exception as e:
+#         return Response({'error': 'Invalid token', 'message': str(e)}, status=401)
+
+
+
+
+
+
+# import logging
+# import firebase_admin
+# from firebase_admin import credentials, auth
+# from rest_framework.response import Response
+# from rest_framework.decorators import api_view, permission_classes
+# from rest_framework.permissions import AllowAny
+# from django.contrib.auth import get_user_model
+# from rest_framework_simplejwt.tokens import RefreshToken
+
+# # Initialize logging
+# logger = logging.getLogger(__name__)
+
+# # Initialize Firebase Admin SDK
+# cred = credentials.Certificate("C:/Users/Bornov Engineering/Desktop/back/locks/locksmith/secrets/lockquick-a63b9-firebase-adminsdk-fbsvc-678defaa16.json")
+# if not firebase_admin._apps:
+#     firebase_admin.initialize_app(cred)
+
+# VALID_ROLES = ['customer', 'admin', 'locksmith']  # Define allowed roles
+
+# User = get_user_model()
+
+# @api_view(['POST'])
+# @permission_classes([AllowAny])
+# def google_login(request):
+#     # Log incoming request
+#     logger.info(f"Received request: {request.data}")
+
+#     id_token = request.data.get('token')
+#     role = request.data.get('role', 'customer')  # Default role is 'customer'
+
+#     # Check if the role is valid before proceeding
+#     if role not in VALID_ROLES:
+#         logger.error(f"Invalid role: {role}")
+#         return Response({'error': 'Invalid role'}, status=400)
+
+#     if not id_token:
+#         return Response({'error': 'Token required'}, status=400)
+
+#     try:
+#         # Verify Firebase token
+#         decoded_token = auth.verify_id_token(id_token)
+#         logger.info(f"Decoded token: {decoded_token}")
+
+#         email = decoded_token['email']
+#         username = decoded_token.get('name') or email.split("@")[0]
+
+#         # Check if the user exists or create a new one
+#         user, created = User.objects.get_or_create(email=email, defaults={'username': username})
+
+#         # If user is newly created or the role needs to be updated, set the role
+#         if created or user.role != role:
+#             user.role = role
+#             user.save()
+
+#         # Generate tokens using SimpleJWT
+#         refresh = RefreshToken.for_user(user)
+#         access_token = str(refresh.access_token)
+#         refresh_token = str(refresh)
+
+#         return Response({
+#             'message': 'Token verified successfully',
+#             'user': {
+#                 'id': user.id,
+#                 'username': user.username,
+#                 'email': user.email,
+#                 'role': user.role
+#             },
+#             'access_token': access_token,
+#             'refresh_token': refresh_token
+#         })
+
+#     except auth.ExpiredIdTokenError as e:
+#         logger.error(f"Token expired: {e}")
+#         return Response({'error': 'Token expired'}, status=401)
+#     except auth.RevokedIdTokenError as e:
+#         logger.error(f"Token has been revoked: {e}")
+#         return Response({'error': 'Token has been revoked'}, status=401)
+#     except Exception as e:
+#         logger.error(f"Error: {str(e)}")
+#         return Response({'error': 'Invalid token', 'message': str(e)}, status=401)
+
+
+
+
+
+import logging
 import firebase_admin
 from firebase_admin import credentials, auth
 from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from django.contrib.auth import get_user_model
-from rest_framework_simplejwt.tokens import RefreshToken  # ✅ Use SimpleJWT
+from rest_framework_simplejwt.tokens import RefreshToken
+import time
+
+# Initialize logging
+logger = logging.getLogger(__name__)
 
 # Initialize Firebase Admin SDK
 cred = credentials.Certificate("C:/Users/Bornov Engineering/Desktop/back/locks/locksmith/secrets/lockquick-a63b9-firebase-adminsdk-fbsvc-678defaa16.json")
 if not firebase_admin._apps:
     firebase_admin.initialize_app(cred)
 
+VALID_ROLES = ['customer', 'admin', 'locksmith']  
+
 User = get_user_model()
+
+import time
+
+GRACE_PERIOD = 300  # 5 minutes grace period for clock discrepancy
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def google_login(request):
-    # Get the token and role from the request body
+    # Log incoming request
+    logger.info(f"Received request: {request.data}")
+    
+    # Retrieve the token and role from the request data
     id_token = request.data.get('token')
     role = request.data.get('role', 'customer')  # Default role is 'customer'
 
     if not id_token:
         return Response({'error': 'Token required'}, status=400)
 
+    # Validate the role
+    if role not in VALID_ROLES:
+        return Response({'error': 'Invalid role'}, status=400)
+
     try:
+        # Get the current time (in seconds since epoch)
+        current_time = time.time()
+
         # Verify Firebase token
-        decoded_token = auth.verify_id_token(id_token)
+        decoded_token = auth.verify_id_token(id_token, check_revoked=True)
+        logger.info(f"Decoded token: {decoded_token}")
+
+        # Check if the token's 'iat' (issued at) claim is too far in the past
+        if decoded_token['iat'] > current_time + GRACE_PERIOD:
+            raise auth.ExpiredIdTokenError("Token is used too early")
+
         email = decoded_token['email']
         username = decoded_token.get('name') or email.split("@")[0]
 
@@ -1638,7 +1818,7 @@ def google_login(request):
             user.role = role
             user.save()
 
-        # ✅ Generate tokens using SimpleJWT
+        # Generate tokens using SimpleJWT
         refresh = RefreshToken.for_user(user)
         access_token = str(refresh.access_token)
         refresh_token = str(refresh)
@@ -1655,9 +1835,12 @@ def google_login(request):
             'refresh_token': refresh_token
         })
 
-    except auth.ExpiredIdTokenError:
-        return Response({'error': 'Token expired'}, status=401)
+    except auth.ExpiredIdTokenError as e:
+        logger.error(f"Token expired or used too early: {e}")
+        return Response({'error': 'Token expired or used too early'}, status=401)
     except auth.RevokedIdTokenError:
+        logger.error('Token has been revoked')
         return Response({'error': 'Token has been revoked'}, status=401)
     except Exception as e:
+        logger.error(f"Error: {str(e)}")
         return Response({'error': 'Invalid token', 'message': str(e)}, status=401)
