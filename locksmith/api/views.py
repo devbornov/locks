@@ -1604,39 +1604,13 @@ from firebase_admin import credentials, auth
 from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
-from django.contrib.auth import get_user_model  # Use get_user_model to fetch custom user model
-import jwt
-import datetime
+from django.contrib.auth import get_user_model
+from rest_framework_simplejwt.tokens import RefreshToken  # ✅ Use SimpleJWT
 
 # Initialize Firebase Admin SDK
 cred = credentials.Certificate("C:/Users/Bornov Engineering/Desktop/back/locks/locksmith/secrets/lockquick-a63b9-firebase-adminsdk-fbsvc-678defaa16.json")
 if not firebase_admin._apps:
     firebase_admin.initialize_app(cred)
-
-# JWT secret key (use a more secure key for production)
-JWT_SECRET_KEY = "your-secret-key"
-
-def generate_access_token(user):
-    """Generate Access Token (valid for 1 hour)"""
-    payload = {
-        'user_id': user.id,
-        'username': user.username,
-        'email': user.email,
-        'role': user.role,
-        'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=1)  # Access token expires in 1 hour
-    }
-    return jwt.encode(payload, JWT_SECRET_KEY, algorithm='HS256')
-
-def generate_refresh_token(user):
-    """Generate Refresh Token (valid for 7 days)"""
-    payload = {
-        'user_id': user.id,
-        'username': user.username,
-        'email': user.email,
-        'role': user.role,
-        'exp': datetime.datetime.utcnow() + datetime.timedelta(days=7)  # Refresh token expires in 7 days
-    }
-    return jwt.encode(payload, JWT_SECRET_KEY, algorithm='HS256')
 
 User = get_user_model()
 
@@ -1657,20 +1631,22 @@ def google_login(request):
         username = decoded_token.get('name') or email.split("@")[0]
 
         # Check if the user exists or create a new one
-        user, created = User.objects.get_or_create(email=email, username=username)
+        user, created = User.objects.get_or_create(email=email, defaults={'username': username})
 
         # If user is newly created or the role needs to be updated, set the role
         if created or user.role != role:
             user.role = role
             user.save()
 
-        # Generate access and refresh tokens
-        access_token = generate_access_token(user)
-        refresh_token = generate_refresh_token(user)
+        # ✅ Generate tokens using SimpleJWT
+        refresh = RefreshToken.for_user(user)
+        access_token = str(refresh.access_token)
+        refresh_token = str(refresh)
 
         return Response({
             'message': 'Token verified successfully',
             'user': {
+                'id': user.id,
                 'username': user.username,
                 'email': user.email,
                 'role': user.role
