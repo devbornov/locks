@@ -1,4 +1,4 @@
-from rest_framework import viewsets, permissions
+from rest_framework import viewsets, permissions , filters
 from .permissions import IsAdmin
 from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
@@ -374,6 +374,16 @@ class CarKeyDetailsViewSet(viewsets.ModelViewSet):
     queryset = CarKeyDetails.objects.all()
     serializer_class = CarKeyDetailsSerializer
     permission_classes = [IsAdmin]  # Only Admin can manage car key details
+    
+from rest_framework.permissions import AllowAny
+
+class CarKeyDetailsViewSet(viewsets.ModelViewSet):
+    queryset = CarKeyDetails.objects.all()
+    serializer_class = CarKeyDetailsSerializer
+    permission_classes = [AllowAny]
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['manufacturer', 'model', 'year', 'number_of_buttons']
+
 
 
 
