@@ -6,6 +6,7 @@ from .views import (
     ServiceRequestViewSet, ServiceBidViewSet, 
     AdminSettingsViewSet,AllLocksmiths,CustomersViewSet,AdmincomissionViewSet,CustomerServiceRequestViewSet,Approvalverification, BookingViewSet , 
     AdminLocksmithServiceViewSet,AdminLocksmithServiceApprovalViewSet , CustomerProfileViewSet , ContactMessageViewSet , ForgotPasswordViewSet
+    , CusCarKeyDetailsViewSet , get_address_suggestions
 )
 
 
@@ -35,12 +36,13 @@ router.register(r'bookings', BookingViewSet)
 router.register(r'customer-profile', CustomerProfileViewSet, basename='customer-profile')
 router.register(r'contact', ContactMessageViewSet, basename='contact')
 router.register(r'forgot-password', ForgotPasswordViewSet, basename='forgot-password')
-router.register(r'car-key-details', CarKeyDetailsViewSet, basename='car-key-details')
+router.register(r'car-key-details', CusCarKeyDetailsViewSet, basename='car-key-details')
 # router.register(r'locksmithservices', LocksmithServiceUpdateViewSet, basename='locksmithservices')
 # Add AdminSettings viewset
 
 # URL patterns
 urlpatterns = [
     path('', include(router.urls)),
+    path('get-address-suggestions/', get_address_suggestions, name='get_address_suggestions'),
     
 ]

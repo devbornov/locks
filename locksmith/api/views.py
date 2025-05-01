@@ -377,7 +377,7 @@ class CarKeyDetailsViewSet(viewsets.ModelViewSet):
     
 from rest_framework.permissions import AllowAny
 
-class CarKeyDetailsViewSet(viewsets.ModelViewSet):
+class CusCarKeyDetailsViewSet(viewsets.ModelViewSet):
     queryset = CarKeyDetails.objects.all()
     serializer_class = CarKeyDetailsSerializer
     permission_classes = [AllowAny]
@@ -1037,7 +1037,23 @@ class BookingViewSet(viewsets.ModelViewSet):
         if user.role != "customer":
             raise serializers.ValidationError({"error": "Only customers can create bookings."})
 
-        serializer.save(customer=user)
+        # Get additional fields from request data
+        customer_contact_number = self.request.data.get('customer_contact_number')
+        customer_address = self.request.data.get('customer_address')
+        house_number = self.request.data.get('house_number')  # ✅ new field
+
+        # Debug prints to check the values before saving
+        print("Customer Contact Number:", customer_contact_number)
+        print("Customer Address:", customer_address)
+        print("House Number:", house_number)
+
+        # Save the booking with the provided data
+        serializer.save(
+            customer=user,
+            customer_contact_number=customer_contact_number,
+            customer_address=customer_address,
+            house_number=house_number  # ✅ include in save
+        )
         
         
         
@@ -1690,8 +1706,8 @@ from rest_framework_simplejwt.tokens import RefreshToken
 logger = logging.getLogger(__name__)
 
 # Initialize Firebase Admin SDK
-cred = credentials.Certificate("/home/ubuntu/lockquick/locksmith/secrets/lockquick-a63b9-firebase-adminsdk-fbsvc-678defaa16.json")
-# cred = credentials.Certificate("C:/Users/Bornov Engineering/Desktop/back/locks/locksmith/secrets/lockquick-a63b9-firebase-adminsdk-fbsvc-678defaa16.json")
+cred = credentials.Certificate("/home/ubuntu/lockquick/locksmith/secrets/lockquick-6f1b8-firebase-adminsdk-fbsvc-55d681f13b.json")
+# cred = credentials.Certificate("C:/Users/Bornov Engineering/Desktop/back/locks/locksmith/secrets/lockquick-6f1b8-firebase-adminsdk-fbsvc-55d681f13b.json")
 if not firebase_admin._apps:
     firebase_admin.initialize_app(cred)
 
@@ -1855,3 +1871,21 @@ def google_login(request):
 #     except Exception as e:
 #         logger.error(f"Error: {str(e)}")
 #         return Response({'error': 'Invalid token', 'message': str(e)}, status=401)
+
+
+
+
+
+import requests
+from django.http import JsonResponse
+from django.conf import settings
+
+def get_address_suggestions(request):
+    query = request.GET.get('query', '')
+    api_key = settings.GOOGLE_MAPS_API_KEY
+    url = f'https://maps.googleapis.com/maps/api/place/autocomplete/json?input={query}&key={api_key}'
+
+    response = requests.get(url)
+    suggestions = response.json()
+
+    return JsonResponse(suggestions)

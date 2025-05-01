@@ -277,21 +277,50 @@ class PlatformStatistics(models.Model):
 
 
 
+# class Booking(models.Model):
+#     customer = models.ForeignKey(User, on_delete=models.CASCADE, related_name="bookings")
+#     locksmith_service = models.ForeignKey(LocksmithServices, on_delete=models.CASCADE)
+#     scheduled_date = models.DateTimeField()
+#     status = models.CharField(
+#         max_length=20, choices=[('Scheduled', 'Scheduled'), ('Completed', 'Completed'), ('Cancelled', 'Cancelled')], default='Scheduled'
+#     )
+#     payment_intent_id = models.CharField(max_length=255, blank=True, null=True)  # ✅ Store Stripe PaymentIntent ID
+#     stripe_session_id = models.CharField(max_length=255, blank=True, null=True)  # ✅ Store Stripe Session ID
+#     payment_status = models.CharField(max_length=20, choices=[
+#         ("pending", "Pending"),
+#         ("paid", "Paid"),
+#         ("refunded", "Refunded"),
+#         ("canceled", "Canceled")   
+#     ], default="pending")  # ✅ Store Payment Status
+
+#     def complete(self):
+#         self.status = 'Completed'
+#         self.save()
+
+#     def cancel(self):
+#         self.status = 'Cancelled'
+#         self.save()
 class Booking(models.Model):
     customer = models.ForeignKey(User, on_delete=models.CASCADE, related_name="bookings")
     locksmith_service = models.ForeignKey(LocksmithServices, on_delete=models.CASCADE)
     scheduled_date = models.DateTimeField()
+    
+    # NEW FIELDS
+    customer_contact_number = models.CharField(max_length=20, blank=True, null=True)
+    customer_address = models.TextField(blank=True, null=True)
+    house_number = models.CharField(max_length=20, blank=True, null=True)
+
     status = models.CharField(
         max_length=20, choices=[('Scheduled', 'Scheduled'), ('Completed', 'Completed'), ('Cancelled', 'Cancelled')], default='Scheduled'
     )
-    payment_intent_id = models.CharField(max_length=255, blank=True, null=True)  # ✅ Store Stripe PaymentIntent ID
-    stripe_session_id = models.CharField(max_length=255, blank=True, null=True)  # ✅ Store Stripe Session ID
+    payment_intent_id = models.CharField(max_length=255, blank=True, null=True)
+    stripe_session_id = models.CharField(max_length=255, blank=True, null=True)
     payment_status = models.CharField(max_length=20, choices=[
         ("pending", "Pending"),
         ("paid", "Paid"),
         ("refunded", "Refunded"),
-        ("canceled", "Canceled")
-    ], default="pending")  # ✅ Store Payment Status
+        ("canceled", "Canceled")   
+    ], default="pending")
 
     def complete(self):
         self.status = 'Completed'
@@ -300,7 +329,6 @@ class Booking(models.Model):
     def cancel(self):
         self.status = 'Cancelled'
         self.save()
-        
         
         
         

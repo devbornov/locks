@@ -353,3 +353,4 @@ SOCIAL_AUTH_GOOGLE_CALLBACK_URL = "https://lockquick.com.au/accounts/google/logi
 
 SOCIALACCOUNT_ADAPTER = 'api.adapters.MySocialAccountAdapter'
 
+GOOGLE_MAPS_API_KEY = 'AIzaSyBEHlAVb2PxzZs6UAPRCqkG2GOfVkApnj8'

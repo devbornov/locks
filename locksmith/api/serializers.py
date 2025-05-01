@@ -415,19 +415,34 @@ class CustomerServiceRequestSerializer(serializers.ModelSerializer):
 
 
 
+# class BookingSerializer(serializers.ModelSerializer):
+#     customer = UserSerializer(read_only=True)  # Fetches customer details
+#     locksmith_service_type = serializers.SerializerMethodField()
+#     payment_intent_id = serializers.CharField(read_only=True)  # ✅ Add Stripe PaymentIntent ID
+
+#     class Meta:
+#         model = Booking
+#         fields = '__all__'
+#         read_only_fields = ['customer', 'status', 'locksmith_service_type', 'payment_intent_id']  # ✅ Prevent modification
+
+#     def get_locksmith_service_type(self, obj):
+#         return obj.locksmith_service.service_type if obj.locksmith_service else None
 class BookingSerializer(serializers.ModelSerializer):
-    customer = UserSerializer(read_only=True)  # Fetches customer details
+    customer = UserSerializer(read_only=True)
     locksmith_service_type = serializers.SerializerMethodField()
-    payment_intent_id = serializers.CharField(read_only=True)  # ✅ Add Stripe PaymentIntent ID
+    payment_intent_id = serializers.CharField(read_only=True)
+    
+    # Include the new fields
+    customer_contact_number = serializers.CharField(max_length=20, required=False, allow_blank=True)
+    customer_address = serializers.CharField(max_length=255, required=False, allow_blank=True)
 
     class Meta:
         model = Booking
         fields = '__all__'
-        read_only_fields = ['customer', 'status', 'locksmith_service_type', 'payment_intent_id']  # ✅ Prevent modification
+        read_only_fields = ['customer', 'status', 'locksmith_service_type', 'payment_intent_id']
 
     def get_locksmith_service_type(self, obj):
         return obj.locksmith_service.service_type if obj.locksmith_service else None
-
 
 
 
