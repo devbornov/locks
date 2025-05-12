@@ -823,7 +823,7 @@ class LocksmithViewSet(viewsets.ModelViewSet):
         # Render HTML email template
         context = {
             'locksmith_name': locksmith.user.username,
-            'site_url': "http://127.0.0.1:8000/dashboard",  # Update with live URL
+            'site_url': "https://lockquick.com.au/lock-dashboard/",  # Update with live URL
         }
         html_content = render_to_string("emails/locksmith_verified.html", context)
         text_content = strip_tags(html_content)  # Fallback text email
@@ -922,8 +922,8 @@ class LocksmithViewSet(viewsets.ModelViewSet):
 
         account_link = stripe.AccountLink.create(
             account=locksmith.stripe_account_id,
-            refresh_url="http://localhost:3000/stripe-onboard",
-            return_url="http://localhost:3000/lock-dashboard",
+            refresh_url="https://lockquick.com.au/stripe-onboard",
+            return_url="https://lockquick.com.au/lock-dashboard",
             type="account_onboarding",
         )
 
@@ -998,6 +998,315 @@ def call_locksmith(locksmith_phone, locksmith_name, booking_id):
     
     print(f"📞 Call triggered to Locksmith {locksmith_name} (Phone: {locksmith_phone}) - Call SID: {call.sid}")
     return call.sid
+
+
+# class BookingViewSet(viewsets.ModelViewSet):
+#     """
+#     ViewSet for handling bookings, payments, refunds, and status updates.
+#     """
+#     queryset = Booking.objects.all()
+#     serializer_class = BookingSerializer
+#     permission_classes = [IsAuthenticated] 
+    
+#     def get_queryset(self):
+#         """Filter bookings based on logged-in user role."""
+#         user = self.request.user  
+
+#         if user.role == "customer":
+#             return Booking.objects.filter(customer=user)
+
+#         elif user.role == "locksmith":
+#             try:
+#                 locksmith = Locksmith.objects.get(user=user)  
+#                 return Booking.objects.filter(locksmith_service__locksmith=locksmith)  
+#             except Locksmith.DoesNotExist:
+#                 return Booking.objects.none()  
+
+#         elif user.role == "admin":
+#             return Booking.objects.all()  
+
+#         return Booking.objects.none() 
+        
+#     def perform_create(self, serializer):
+#         """
+#         Assign the authenticated user as the customer before saving.
+#         """
+#         user = self.request.user
+
+#         if not user.is_authenticated:
+#             raise serializers.ValidationError({"error": "User must be authenticated to create a booking."})
+
+#         if user.role != "customer":
+#             raise serializers.ValidationError({"error": "Only customers can create bookings."})
+
+#         # Get additional fields from request data
+#         customer_contact_number = self.request.data.get('customer_contact_number')
+#         customer_address = self.request.data.get('customer_address')
+#         house_number = self.request.data.get('house_number')  # ✅ new field
+
+#         # Debug prints to check the values before saving
+#         print("Customer Contact Number:", customer_contact_number)
+#         print("Customer Address:", customer_address)
+#         print("House Number:", house_number)
+
+#         # Save the booking with the provided data
+#         serializer.save(
+#             customer=user,
+#             customer_contact_number=customer_contact_number,
+#             customer_address=customer_address,
+#             house_number=house_number  # ✅ include in save
+#         )
+        
+        
+        
+
+    
+#     @action(detail=True, methods=['post'])
+#     def process_payment(self, request, pk=None):
+#         booking = self.get_object()
+#         locksmith_service = booking.locksmith_service  
+#         total_price = locksmith_service.total_price  
+
+#         try:
+#             checkout_session = stripe.checkout.Session.create(
+#                 payment_method_types=["card", "afterpay_clearpay", "klarna", "zip"],
+#                 line_items=[{
+#                     'price_data': {
+#                         'currency': 'aud',
+#                         'product_data': {'name': locksmith_service.admin_service.name},
+#                         'unit_amount': int(total_price * 100),  # Convert to cents
+#                     },
+#                     'quantity': 1,
+#                 }],
+#                 mode='payment',
+#                 success_url="https://lockquick.com.au/payment-success?session_id={CHECKOUT_SESSION_ID}",
+#                 cancel_url="https://lockquick.com.au/payment-cancel",
+#             )
+
+#             # 🔹 Save Stripe Session ID in Booking
+#             booking.stripe_session_id = checkout_session.id
+#             booking.payment_status = "pending"
+#             booking.save()
+
+#             print(f"✅ Saved Booking {booking.id} with Stripe Session ID: {checkout_session.id}")
+
+#             return Response({'checkout_url': checkout_session.url})
+
+#         except stripe.error.StripeError as e:
+#             return Response({"error": str(e)}, status=400)
+    
+#     @action(detail=True, methods=['post'])
+#     def complete_payment(self, request, pk=None):
+#         """Handles payment completion and triggers a call to the locksmith."""
+#         booking = self.get_object()
+        
+#         # Ensure payment was made
+#         if not booking.payment_intent_id:
+#             return Response({"error": "No PaymentIntent ID found. Ensure payment is completed."}, status=400)
+
+#         try:
+#             # Retrieve PaymentIntent
+#             payment_intent = stripe.PaymentIntent.retrieve(booking.payment_intent_id)
+
+#             if payment_intent.status == "succeeded":
+#                 booking.payment_status = "paid"
+#                 booking.status = "Scheduled"
+#                 booking.save()
+                
+#                 # 🔹 Trigger a call to the locksmith
+#                 locksmith = booking.locksmith_service.locksmith
+#                 call_locksmith(locksmith.contact_number, locksmith.user.get_full_name(), booking.id)
+
+#                 return Response({
+#                     "status": "Payment successful. Booking confirmed.",
+#                     "message": "Locksmith has been notified via an automated call."
+#                 })
+
+#             return Response({"error": "Payment not completed."}, status=400)
+
+#         except stripe.error.StripeError as e:
+#             return Response({"error": str(e)}, status=400)
+        
+
+#     @action(detail=True, methods=['post'])
+#     def complete(self, request, pk=None):
+#         """Locksmith marks booking as completed and receives payment"""
+#         booking = self.get_object()
+
+#         # ✅ Ensure booking is scheduled
+#         if booking.status != "Scheduled":
+#             return Response({'error': 'Booking is not in a valid state to be completed'}, status=400)
+
+#         # ✅ Ensure payment exists
+#         if not booking.payment_intent_id:
+#             return Response({'error': 'No PaymentIntent ID found. Ensure payment is completed.'}, status=400)
+
+#         # ✅ Ensure locksmith is correct
+#         locksmith = booking.locksmith_service.locksmith
+#         if locksmith.user != request.user:
+#             return Response({'error': 'Permission denied'}, status=403)
+
+#         # ✅ Ensure locksmith has Stripe account
+#         if not locksmith.stripe_account_id:
+#             return Response({'error': 'Locksmith does not have a Stripe account'}, status=400)
+
+#         try:
+#             # ✅ Retrieve PaymentIntent
+#             payment_intent = stripe.PaymentIntent.retrieve(booking.payment_intent_id)
+
+#             # ✅ If payment is already captured, transfer funds
+#             if payment_intent.status == "succeeded":
+#                 total_price = booking.locksmith_service.total_price
+#                 custom_price = booking.locksmith_service.custom_price
+
+#                 # ✅ Deduction Calculation
+#                 deduct_amount = total_price - custom_price
+#                 transfer_amount = custom_price  # Only sending locksmith's custom price
+
+#                 # ✅ Convert to cents
+#                 transfer_amount_cents = int(transfer_amount * 100)
+
+#                 # ✅ Transfer money to locksmith
+#                 transfer = stripe.Transfer.create(
+#                     amount=transfer_amount_cents,
+#                     currency="usd",
+#                     destination=locksmith.stripe_account_id,
+#                     transfer_group=f"booking_{booking.id}"
+#                 )
+
+#                 # ✅ Mark booking as completed
+#                 booking.status = "Completed"
+#                 booking.payment_status = "paid"
+#                 booking.save()
+
+#                 return Response({
+#                     'status': 'Booking completed and payment transferred to locksmith',
+#                     'transfer_amount': transfer_amount,
+#                     'deducted_amount': deduct_amount
+#                 })
+                
+
+#             else:
+#                 return Response({'error': f'Invalid PaymentIntent status: {payment_intent.status}'}, status=400)
+
+#         except stripe.error.StripeError as e:
+#             return Response({'error': str(e)}, status=400)
+
+
+
+
+#     @action(detail=True, methods=['post'])
+#     def process_refund(self, request, pk=None):
+#         """
+#         ✅ Refund customer payment.
+#         """
+#         booking = self.get_object()
+
+#         if not booking.payment_intent_id:
+#             return Response({"error": "PaymentIntent ID is missing."}, status=400)
+
+#         try:
+#             refund = stripe.Refund.create(payment_intent=booking.payment_intent_id)
+
+#             booking.payment_status = "refunded"
+#             booking.save()
+
+#             return Response({"message": "Refund successful", "refund_id": refund.id})
+
+#         except stripe.error.StripeError as e:
+#             return Response({"error": str(e)}, status=400)
+
+#     @action(detail=True, methods=['post'])
+#     def cancel(self, request, pk=None):
+#         """
+#         ✅ Customer cancels the booking.
+#         """
+#         booking = self.get_object()
+#         if booking.customer != request.user:
+#             return Response({'error': 'Permission denied'}, status=403)
+        
+#         if booking.payment_status == "pending":
+#             try:
+#                 # ✅ Cancel Stripe Payment Intent if funds are held
+#                 stripe.PaymentIntent.cancel(booking.payment_intent_id)
+#             except stripe.error.StripeError:
+#                 return Response({'error': 'Failed to cancel payment'}, status=400)
+
+#         booking.payment_status = "canceled"
+#         booking.save()
+#         return Response({'status': 'Booking canceled'})
+
+#     @action(detail=False, methods=['get'])
+#     def my_bookings(self, request):
+#         """
+#         ✅ List bookings for the authenticated user.
+#         """
+#         user = request.user
+#         if user.role == "customer":
+#             bookings = Booking.objects.filter(customer=user)
+#         elif user.role == "locksmith":
+#             try:
+#                 locksmith = Locksmith.objects.get(user=user)
+#                 bookings = Booking.objects.filter(locksmith_service__locksmith=locksmith)
+#             except Locksmith.DoesNotExist:
+#                 return Response({"error": "No locksmith profile found"}, status=400)
+#         elif user.role == "admin":
+#             bookings = Booking.objects.all()
+#         else:
+#             return Response({"error": "Unauthorized"}, status=403)
+
+#         serializer = self.get_serializer(bookings, many=True)
+#         return Response(serializer.data)
+    
+    
+    
+# STRIPE_WEBHOOK_SECRET = settings.STRIPE_WEBHOOK_SECRET  
+
+# @csrf_exempt
+# def stripe_webhook(request):
+#     print("\n🔹 Webhook Received!")  # ✅ Log that webhook is received
+
+#     payload = request.body
+#     sig_header = request.headers.get("Stripe-Signature", None)
+
+#     try:
+#         # ✅ Verify Stripe Signature
+#         event = stripe.Webhook.construct_event(payload, sig_header, STRIPE_WEBHOOK_SECRET)
+#         print(f"\n🔹 Full Webhook Event:\n{json.dumps(event, indent=2)}")  # ✅ Log full event
+#     except ValueError as e:
+#         print(f"\n❌ Invalid Payload: {str(e)}")
+#         return JsonResponse({"error": "Invalid payload"}, status=400)
+#     except stripe.error.SignatureVerificationError as e:
+#         print(f"\n❌ Invalid Signature: {str(e)}")
+#         return JsonResponse({"error": "Invalid signature"}, status=400)
+
+#     # ✅ Process "checkout.session.completed" Event
+#     if event["type"] == "checkout.session.completed":
+#         session = event["data"]["object"]
+#         stripe_session_id = session.get("id")  # ✅ Get Stripe Session ID
+#         payment_intent_id = session.get("payment_intent")
+
+#         print(f"\n🔹 Processing PaymentIntent ID: {payment_intent_id}")
+
+#         # ✅ Find and Update Booking using Stripe Session ID
+#         booking = Booking.objects.filter(stripe_session_id=stripe_session_id).first()
+
+#         if booking:
+#             booking.payment_intent_id = payment_intent_id  # ✅ Save Payment Intent ID
+#             booking.payment_status = "paid"  # ✅ Mark as Paid
+#             booking.save()
+#             print(f"\n✅ Updated Booking {booking.id} with PaymentIntent ID: {payment_intent_id}")
+#         else:
+#             print("\n❌ No matching booking found for this payment!")
+
+#     return HttpResponse(status=200)
+
+
+
+
+
+
+
 class BookingViewSet(viewsets.ModelViewSet):
     """
     ViewSet for handling bookings, payments, refunds, and status updates.
@@ -1037,28 +1346,17 @@ class BookingViewSet(viewsets.ModelViewSet):
         if user.role != "customer":
             raise serializers.ValidationError({"error": "Only customers can create bookings."})
 
-        # Get additional fields from request data
         customer_contact_number = self.request.data.get('customer_contact_number')
         customer_address = self.request.data.get('customer_address')
-        house_number = self.request.data.get('house_number')  # ✅ new field
+        house_number = self.request.data.get('house_number')
 
-        # Debug prints to check the values before saving
-        print("Customer Contact Number:", customer_contact_number)
-        print("Customer Address:", customer_address)
-        print("House Number:", house_number)
-
-        # Save the booking with the provided data
         serializer.save(
             customer=user,
             customer_contact_number=customer_contact_number,
             customer_address=customer_address,
-            house_number=house_number  # ✅ include in save
+            house_number=house_number
         )
-        
-        
-        
 
-    
     @action(detail=True, methods=['post'])
     def process_payment(self, request, pk=None):
         booking = self.get_object()
@@ -1072,21 +1370,18 @@ class BookingViewSet(viewsets.ModelViewSet):
                     'price_data': {
                         'currency': 'aud',
                         'product_data': {'name': locksmith_service.admin_service.name},
-                        'unit_amount': int(total_price * 100),  # Convert to cents
+                        'unit_amount': int(total_price * 100),
                     },
                     'quantity': 1,
                 }],
                 mode='payment',
-                success_url="https://yourwebsite.com/payment-success?session_id={CHECKOUT_SESSION_ID}",
-                cancel_url="https://yourwebsite.com/payment-cancel",
+                success_url="https://lockquick.com.au/payment-success?session_id={CHECKOUT_SESSION_ID}",
+                cancel_url="https://lockquick.com.au/payment-cancel",
             )
 
-            # 🔹 Save Stripe Session ID in Booking
             booking.stripe_session_id = checkout_session.id
             booking.payment_status = "pending"
             booking.save()
-
-            print(f"✅ Saved Booking {booking.id} with Stripe Session ID: {checkout_session.id}")
 
             return Response({'checkout_url': checkout_session.url})
 
@@ -1095,36 +1390,34 @@ class BookingViewSet(viewsets.ModelViewSet):
     
     @action(detail=True, methods=['post'])
     def complete_payment(self, request, pk=None):
-        """Handles payment completion and triggers a call to the locksmith."""
+        """Handles payment completion without using Stripe webhook."""
         booking = self.get_object()
-        
-        # Ensure payment was made
-        if not booking.payment_intent_id:
-            return Response({"error": "No PaymentIntent ID found. Ensure payment is completed."}, status=400)
+
+        if not booking.stripe_session_id:
+            return Response({"error": "Missing Stripe Session ID."}, status=400)
 
         try:
-            # Retrieve PaymentIntent
-            payment_intent = stripe.PaymentIntent.retrieve(booking.payment_intent_id)
+            # Retrieve Stripe Checkout Session
+            session = stripe.checkout.Session.retrieve(booking.stripe_session_id)
 
-            if payment_intent.status == "succeeded":
+            if session.payment_status == "paid":
+                booking.payment_intent_id = session.payment_intent
                 booking.payment_status = "paid"
                 booking.status = "Scheduled"
                 booking.save()
-                
-                # 🔹 Trigger a call to the locksmith
+
                 locksmith = booking.locksmith_service.locksmith
-                call_locksmith(locksmith.contact_number, locksmith.user.get_full_name(), booking.id)
+                # call_locksmith(locksmith.contact_number, locksmith.user.get_full_name(), booking.id)
 
                 return Response({
-                    "status": "Payment successful. Booking confirmed.",
-                    "message": "Locksmith has been notified via an automated call."
+                    "status": "Payment confirmed and booking scheduled.",
+                    "message": "Locksmith notified via automated call."
                 })
 
-            return Response({"error": "Payment not completed."}, status=400)
+            return Response({"error": "Payment is not completed yet."}, status=400)
 
         except stripe.error.StripeError as e:
             return Response({"error": str(e)}, status=400)
-        
 
     @action(detail=True, methods=['post'])
     def complete(self, request, pk=None):
@@ -1167,7 +1460,7 @@ class BookingViewSet(viewsets.ModelViewSet):
                 # ✅ Transfer money to locksmith
                 transfer = stripe.Transfer.create(
                     amount=transfer_amount_cents,
-                    currency="usd",
+                    currency="aud",
                     destination=locksmith.stripe_account_id,
                     transfer_group=f"booking_{booking.id}"
                 )
@@ -1192,12 +1485,9 @@ class BookingViewSet(viewsets.ModelViewSet):
 
 
 
-
     @action(detail=True, methods=['post'])
     def process_refund(self, request, pk=None):
-        """
-        ✅ Refund customer payment.
-        """
+        """Refund customer payment."""
         booking = self.get_object()
 
         if not booking.payment_intent_id:
@@ -1205,7 +1495,6 @@ class BookingViewSet(viewsets.ModelViewSet):
 
         try:
             refund = stripe.Refund.create(payment_intent=booking.payment_intent_id)
-
             booking.payment_status = "refunded"
             booking.save()
 
@@ -1216,16 +1505,13 @@ class BookingViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def cancel(self, request, pk=None):
-        """
-        ✅ Customer cancels the booking.
-        """
+        """Customer cancels the booking."""
         booking = self.get_object()
         if booking.customer != request.user:
             return Response({'error': 'Permission denied'}, status=403)
-        
+
         if booking.payment_status == "pending":
             try:
-                # ✅ Cancel Stripe Payment Intent if funds are held
                 stripe.PaymentIntent.cancel(booking.payment_intent_id)
             except stripe.error.StripeError:
                 return Response({'error': 'Failed to cancel payment'}, status=400)
@@ -1236,9 +1522,7 @@ class BookingViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'])
     def my_bookings(self, request):
-        """
-        ✅ List bookings for the authenticated user.
-        """
+        """List bookings for the authenticated user."""
         user = request.user
         if user.role == "customer":
             bookings = Booking.objects.filter(customer=user)
@@ -1255,50 +1539,6 @@ class BookingViewSet(viewsets.ModelViewSet):
 
         serializer = self.get_serializer(bookings, many=True)
         return Response(serializer.data)
-    
-    
-    
-STRIPE_WEBHOOK_SECRET = settings.STRIPE_WEBHOOK_SECRET  
-
-@csrf_exempt
-def stripe_webhook(request):
-    print("\n🔹 Webhook Received!")  # ✅ Log that webhook is received
-
-    payload = request.body
-    sig_header = request.headers.get("Stripe-Signature", None)
-
-    try:
-        # ✅ Verify Stripe Signature
-        event = stripe.Webhook.construct_event(payload, sig_header, STRIPE_WEBHOOK_SECRET)
-        print(f"\n🔹 Full Webhook Event:\n{json.dumps(event, indent=2)}")  # ✅ Log full event
-    except ValueError as e:
-        print(f"\n❌ Invalid Payload: {str(e)}")
-        return JsonResponse({"error": "Invalid payload"}, status=400)
-    except stripe.error.SignatureVerificationError as e:
-        print(f"\n❌ Invalid Signature: {str(e)}")
-        return JsonResponse({"error": "Invalid signature"}, status=400)
-
-    # ✅ Process "checkout.session.completed" Event
-    if event["type"] == "checkout.session.completed":
-        session = event["data"]["object"]
-        stripe_session_id = session.get("id")  # ✅ Get Stripe Session ID
-        payment_intent_id = session.get("payment_intent")
-
-        print(f"\n🔹 Processing PaymentIntent ID: {payment_intent_id}")
-
-        # ✅ Find and Update Booking using Stripe Session ID
-        booking = Booking.objects.filter(stripe_session_id=stripe_session_id).first()
-
-        if booking:
-            booking.payment_intent_id = payment_intent_id  # ✅ Save Payment Intent ID
-            booking.payment_status = "paid"  # ✅ Mark as Paid
-            booking.save()
-            print(f"\n✅ Updated Booking {booking.id} with PaymentIntent ID: {payment_intent_id}")
-        else:
-            print("\n❌ No matching booking found for this payment!")
-
-    return HttpResponse(status=200)
-
 
 
 
