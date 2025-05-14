@@ -373,16 +373,30 @@ class AllLocksmiths(viewsets.ReadOnlyModelViewSet):  # Use ReadOnlyModelViewSet 
 class CarKeyDetailsViewSet(viewsets.ModelViewSet):
     queryset = CarKeyDetails.objects.all()
     serializer_class = CarKeyDetailsSerializer
-    permission_classes = [IsAdmin]  # Only Admin can manage car key details
+    # permission_classes = [IsAdmin]
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['manufacturer']
     
 from rest_framework.permissions import AllowAny
-
+from django.db.models import Q
 class CusCarKeyDetailsViewSet(viewsets.ModelViewSet):
-    queryset = CarKeyDetails.objects.all()
     serializer_class = CarKeyDetailsSerializer
     permission_classes = [AllowAny]
     filter_backends = [filters.SearchFilter]
-    search_fields = ['manufacturer', 'model', 'year', 'number_of_buttons']
+    search_fields = ['manufacturer', 'model', 'year_from', 'year_to', 'number_of_buttons']
+
+    def get_queryset(self):
+        queryset = CarKeyDetails.objects.all()
+        target_year = self.request.query_params.get('year')
+        if target_year:
+            try:
+                year = int(target_year)
+                queryset = queryset.filter(
+                    Q(year_from__lte=year) & Q(year_to__gte=year)
+                )
+            except ValueError:
+                pass  # Ignore invalid input
+        return queryset
 
 
 
@@ -535,12 +549,14 @@ class ServiceViewSet(viewsets.ModelViewSet):
         percentage = admin_settings.percentage if admin_settings else Decimal("0")
 
         # Convert custom_price to Decimal
-        custom_price = serializer.validated_data.get("custom_price", 0)
-        custom_price = Decimal(str(custom_price))
+        custom_price = serializer.validated_data.get("custom_price", Decimal("0"))
+        additional_key_price = serializer.validated_data.get("additional_key_price", Decimal("0.00"))
 
-        # Calculate percentage amount
+        custom_price = Decimal(str(custom_price))
+        additional_key_price = Decimal(str(additional_key_price))
+
         percentage_amount = (custom_price * percentage) / Decimal("100")
-        total_price = custom_price + percentage_amount + commission_amount  # ✅ Correct formula
+        total_price = custom_price + percentage_amount + commission_amount
 
         # Handle Car Key Details for Automotive Services
         service_type = serializer.validated_data.get("service_type", "residential")
@@ -1334,10 +1350,29 @@ class BookingViewSet(viewsets.ModelViewSet):
 
         return Booking.objects.none() 
         
+    # def perform_create(self, serializer):
+    #     user = self.request.user
+
+    #     if not user.is_authenticated:
+    #         raise serializers.ValidationError({"error": "User must be authenticated to create a booking."})
+
+    #     if user.role != "customer":
+    #         raise serializers.ValidationError({"error": "Only customers can create bookings."})
+
+    #     customer_contact_number = self.request.data.get('customer_contact_number')
+    #     customer_address = self.request.data.get('customer_address')
+    #     house_number = self.request.data.get('house_number')
+    #     number_of_keys = self.request.data.get('number_of_keys')
+
+    #     serializer.save(
+    #         customer=user,
+    #         customer_contact_number=customer_contact_number,
+    #         customer_address=customer_address,
+    #         house_number=house_number,
+    #         number_of_keys=number_of_keys
+    #     )
+
     def perform_create(self, serializer):
-        """
-        Assign the authenticated user as the customer before saving.
-        """
         user = self.request.user
 
         if not user.is_authenticated:
@@ -1346,31 +1381,84 @@ class BookingViewSet(viewsets.ModelViewSet):
         if user.role != "customer":
             raise serializers.ValidationError({"error": "Only customers can create bookings."})
 
-        customer_contact_number = self.request.data.get('customer_contact_number')
-        customer_address = self.request.data.get('customer_address')
-        house_number = self.request.data.get('house_number')
+        data = self.request.data
+        locksmith_service_id = data.get('locksmith_service')
+        try:
+            locksmith_service = LocksmithServices.objects.get(id=locksmith_service_id)
+        except LocksmithServices.DoesNotExist:
+            raise serializers.ValidationError({"error": "Invalid locksmith service."})
 
-        serializer.save(
+        number_of_keys = int(data.get('number_of_keys', 0))
+        additional_key_price = locksmith_service.additional_key_price or 0.0
+
+        base_price = locksmith_service.total_price or 0.0
+        key_total = number_of_keys * additional_key_price
+        total_price = base_price + key_total
+
+        booking = serializer.save(
             customer=user,
-            customer_contact_number=customer_contact_number,
-            customer_address=customer_address,
-            house_number=house_number
+            locksmith_service=locksmith_service,
+            number_of_keys=number_of_keys,
+            total_price=total_price,
         )
 
+    
+    
+    # @action(detail=True, methods=['post'])
+    # def process_payment(self, request, pk=None):
+    #     booking = self.get_object()
+    #     locksmith_service = booking.locksmith_service  
+    #     total_price = locksmith_service.total_price  
+
+    #     try:
+    #         checkout_session = stripe.checkout.Session.create(
+    #             payment_method_types=["card", "afterpay_clearpay", "klarna", "zip"],
+    #             line_items=[{
+    #                 'price_data': {
+    #                     'currency': 'aud',
+    #                     'product_data': {'name': locksmith_service.admin_service.name},
+    #                     'unit_amount': int(total_price * 100),
+    #                 },
+    #                 'quantity': 1,
+    #             }],
+    #             mode='payment',
+    #             success_url="https://lockquick.com.au/payment-success?session_id={CHECKOUT_SESSION_ID}",
+    #             cancel_url="https://lockquick.com.au/payment-cancel",
+    #         )
+
+    #         booking.stripe_session_id = checkout_session.id
+    #         booking.payment_status = "pending"
+    #         booking.save()
+
+    #         return Response({'checkout_url': checkout_session.url})
+
+    #     except stripe.error.StripeError as e:
+    #         return Response({"error": str(e)}, status=400)
+    
+
+    
     @action(detail=True, methods=['post'])
     def process_payment(self, request, pk=None):
         booking = self.get_object()
-        locksmith_service = booking.locksmith_service  
-        total_price = locksmith_service.total_price  
+
+        # Use total_price directly from the booking model
+        total_price = booking.total_price or 0.0
+        locksmith_service = booking.locksmith_service
+
+        if total_price <= 0:
+            return Response({"error": "Total price must be greater than 0."}, status=400)
 
         try:
+            # Stripe checkout session
             checkout_session = stripe.checkout.Session.create(
                 payment_method_types=["card", "afterpay_clearpay", "klarna", "zip"],
                 line_items=[{
                     'price_data': {
                         'currency': 'aud',
-                        'product_data': {'name': locksmith_service.admin_service.name},
-                        'unit_amount': int(total_price * 100),
+                        'product_data': {
+                            'name': locksmith_service.admin_service.name
+                        },
+                        'unit_amount': int(total_price * 100),  # Stripe uses cents
                     },
                     'quantity': 1,
                 }],
@@ -1387,6 +1475,71 @@ class BookingViewSet(viewsets.ModelViewSet):
 
         except stripe.error.StripeError as e:
             return Response({"error": str(e)}, status=400)
+
+    # @action(detail=True, methods=['post'])
+    # def complete(self, request, pk=None):
+    #     """Locksmith marks booking as completed and receives payment"""
+    #     booking = self.get_object()
+
+    #     # ✅ Ensure booking is scheduled
+    #     if booking.status != "Scheduled":
+    #         return Response({'error': 'Booking is not in a valid state to be completed'}, status=400)
+
+    #     # ✅ Ensure payment exists
+    #     if not booking.payment_intent_id:
+    #         return Response({'error': 'No PaymentIntent ID found. Ensure payment is completed.'}, status=400)
+
+    #     # ✅ Ensure locksmith is correct
+    #     locksmith = booking.locksmith_service.locksmith
+    #     if locksmith.user != request.user:
+    #         return Response({'error': 'Permission denied'}, status=403)
+
+    #     # ✅ Ensure locksmith has Stripe account
+    #     if not locksmith.stripe_account_id:
+    #         return Response({'error': 'Locksmith does not have a Stripe account'}, status=400)
+
+    #     try:
+    #         # ✅ Retrieve PaymentIntent
+    #         payment_intent = stripe.PaymentIntent.retrieve(booking.payment_intent_id)
+
+    #         # ✅ If payment is already captured, transfer funds
+    #         if payment_intent.status == "succeeded":
+    #             total_price = booking.locksmith_service.total_price
+    #             custom_price = booking.locksmith_service.custom_price
+
+    #             # ✅ Deduction Calculation
+    #             deduct_amount = total_price - custom_price
+    #             transfer_amount = custom_price  # Only sending locksmith's custom price
+
+    #             # ✅ Convert to cents
+    #             transfer_amount_cents = int(transfer_amount * 100)
+
+    #             # ✅ Transfer money to locksmith
+    #             transfer = stripe.Transfer.create(
+    #                 amount=transfer_amount_cents,
+    #                 currency="aud",
+    #                 destination=locksmith.stripe_account_id,
+    #                 transfer_group=f"booking_{booking.id}"
+    #             )
+
+    #             # ✅ Mark booking as completed
+    #             booking.status = "Completed"
+    #             booking.payment_status = "paid"
+    #             booking.save()
+
+    #             return Response({
+    #                 'status': 'Booking completed and payment transferred to locksmith',
+    #                 'transfer_amount': transfer_amount,
+    #                 'deducted_amount': deduct_amount
+    #             })
+                
+
+    #         else:
+    #             return Response({'error': f'Invalid PaymentIntent status: {payment_intent.status}'}, status=400)
+
+    #     except stripe.error.StripeError as e:
+    #         return Response({'error': str(e)}, status=400)
+    
     
     @action(detail=True, methods=['post'])
     def complete_payment(self, request, pk=None):
@@ -1418,10 +1571,13 @@ class BookingViewSet(viewsets.ModelViewSet):
 
         except stripe.error.StripeError as e:
             return Response({"error": str(e)}, status=400)
+    
 
     @action(detail=True, methods=['post'])
     def complete(self, request, pk=None):
-        """Locksmith marks booking as completed and receives payment"""
+        """
+        Locksmith marks booking as completed and receives payment
+        """
         booking = self.get_object()
 
         # ✅ Ensure booking is scheduled
@@ -1445,37 +1601,47 @@ class BookingViewSet(viewsets.ModelViewSet):
             # ✅ Retrieve PaymentIntent
             payment_intent = stripe.PaymentIntent.retrieve(booking.payment_intent_id)
 
-            # ✅ If payment is already captured, transfer funds
             if payment_intent.status == "succeeded":
-                total_price = booking.locksmith_service.total_price
-                custom_price = booking.locksmith_service.custom_price
+                # ✅ Get prices
+                total_price = booking.total_price or Decimal('0.00')
+                custom_price = booking.locksmith_service.custom_price or Decimal('0.00')
 
-                # ✅ Deduction Calculation
-                deduct_amount = total_price - custom_price
-                transfer_amount = custom_price  # Only sending locksmith's custom price
+                # ✅ Fixed and percentage deductions
+                fixed_fee = Decimal('40.00')
+                ten_percent_fee = custom_price * Decimal('0.10')
+                total_deduction = fixed_fee + ten_percent_fee
 
-                # ✅ Convert to cents
-                transfer_amount_cents = int(transfer_amount * 100)
+                # ✅ Calculate amount to transfer
+                transfer_amount = total_price - total_deduction
 
-                # ✅ Transfer money to locksmith
-                transfer = stripe.Transfer.create(
+                if transfer_amount <= 0:
+                    return Response({'error': 'Transfer amount is zero or negative after deductions.'}, status=400)
+
+                # ✅ Convert to cents for Stripe
+                transfer_amount_cents = int(transfer_amount * Decimal('100'))
+
+                # ✅ Make the transfer
+                stripe.Transfer.create(
                     amount=transfer_amount_cents,
                     currency="aud",
                     destination=locksmith.stripe_account_id,
                     transfer_group=f"booking_{booking.id}"
                 )
 
-                # ✅ Mark booking as completed
+                # ✅ Update booking status
                 booking.status = "Completed"
                 booking.payment_status = "paid"
                 booking.save()
 
                 return Response({
                     'status': 'Booking completed and payment transferred to locksmith',
-                    'transfer_amount': transfer_amount,
-                    'deducted_amount': deduct_amount
+                    'total_price': str(total_price),
+                    'custom_price': str(custom_price),
+                    'deducted_fixed_fee': str(fixed_fee),
+                    'deducted_10_percent': str(ten_percent_fee),
+                    'total_deduction': str(total_deduction),
+                    'transfer_amount': str(transfer_amount)
                 })
-                
 
             else:
                 return Response({'error': f'Invalid PaymentIntent status: {payment_intent.status}'}, status=400)

@@ -20,7 +20,7 @@ from django.conf.urls.static import static
 from django.urls import path , include
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from api.views import CreateAdminUserView, UserRegisterView, LocksmithRegisterView, LoginView,LocksmithProfileView , LogoutView  , get_mcc_code ,CustomFacebookLogin,CustomGoogleLogin
-from api.views import stripe_webhook
+# from api.views import stripe_webhook
 from dj_rest_auth.registration.views import SocialLoginView
 from allauth.socialaccount.providers.google.views import GoogleOAuth2Adapter
 from allauth.socialaccount.providers.facebook.views import FacebookOAuth2Adapter
@@ -46,7 +46,7 @@ urlpatterns = [
     path('locksmith/profile/update/', LocksmithProfileView.as_view(), name='locksmith-profile-update'),
     path('login/', LoginView.as_view(), name='login'),
     path('token/refresh/', TokenRefreshView.as_view(), name='token-refresh'),
-    path("stripe-webhook/", stripe_webhook, name="stripe-webhook"),
+    # path("stripe-webhook/", stripe_webhook, name="stripe-webhook"),
     path("logout/", LogoutView.as_view(), name="logout"),
     path("get-mcc/", get_mcc_code, name="get_mcc"),
     # path("auth/social/", include("allauth.socialaccount.urls")),

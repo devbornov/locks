@@ -103,12 +103,28 @@ class Locksmith(models.Model):
 class CarKeyDetails(models.Model):
     manufacturer = models.CharField(max_length=255)
     model = models.CharField(max_length=255)
-    year = models.IntegerField()
+    
+    # Optional year range fields
+    year_from = models.IntegerField(
+        blank=True,
+        null=True,
+        help_text="Starting year (e.g. 2018)"
+    )
+    year_to = models.IntegerField(
+        blank=True,
+        null=True,
+        help_text="Ending year (e.g. 2024)"
+    )
+
     number_of_buttons = models.IntegerField()
 
     def __str__(self):
-        return f"{self.manufacturer} {self.model} ({self.year})"
-
+        if self.year_from and self.year_to:
+            return f"{self.manufacturer} {self.model} ({self.year_from}-{self.year_to})"
+        return f"{self.manufacturer} {self.model}"
+    
+    
+    
 # Locksmith Service Model
 class Service(models.Model):
     locksmith = models.ForeignKey(Locksmith, on_delete=models.CASCADE)
@@ -159,7 +175,10 @@ class LocksmithServices(models.Model):
         choices=SERVICE_TYPES,
         default='residential'
     )
-    
+    additional_key_price = models.DecimalField(
+    max_digits=10, decimal_places=2, default=0.00,
+    help_text="Price charged per additional key"
+    )
     # ✅ ADD THIS ForeignKey for car key details
     car_key_details = models.ForeignKey(
         CarKeyDetails, on_delete=models.SET_NULL, null=True, blank=True
@@ -305,22 +324,37 @@ class Booking(models.Model):
     locksmith_service = models.ForeignKey(LocksmithServices, on_delete=models.CASCADE)
     scheduled_date = models.DateTimeField()
     
-    # NEW FIELDS
+    # New customer fields
     customer_contact_number = models.CharField(max_length=20, blank=True, null=True)
     customer_address = models.TextField(blank=True, null=True)
     house_number = models.CharField(max_length=20, blank=True, null=True)
+    number_of_keys = models.PositiveIntegerField(
+        blank=True, null=True, help_text="Optional: number of keys the customer wants"
+    )
+    total_price = models.DecimalField(
+        max_digits=10, decimal_places=2, blank=True, null=True,
+        help_text="Total price including base service and keys"
+    )
 
+    # Booking status
     status = models.CharField(
-        max_length=20, choices=[('Scheduled', 'Scheduled'), ('Completed', 'Completed'), ('Cancelled', 'Cancelled')], default='Scheduled'
+        max_length=20,
+        choices=[('Scheduled', 'Scheduled'), ('Completed', 'Completed'), ('Cancelled', 'Cancelled')],
+        default='Scheduled'
     )
     payment_intent_id = models.CharField(max_length=255, blank=True, null=True)
     stripe_session_id = models.CharField(max_length=255, blank=True, null=True)
-    payment_status = models.CharField(max_length=20, choices=[
-        ("pending", "Pending"),
-        ("paid", "Paid"),
-        ("refunded", "Refunded"),
-        ("canceled", "Canceled")   
-    ], default="pending")
+    payment_status = models.CharField(
+        max_length=20,
+        choices=[
+            ("pending", "Pending"),
+            ("paid", "Paid"),
+            ("refunded", "Refunded"),
+            ("canceled", "Canceled")
+        ],
+        default="pending"
+    )
+    image = models.ImageField(upload_to='booking_images/', blank=True, null=True, help_text="Optional image related to the booking")
 
     def complete(self):
         self.status = 'Completed'
@@ -329,6 +363,7 @@ class Booking(models.Model):
     def cancel(self):
         self.status = 'Cancelled'
         self.save()
+
         
         
         

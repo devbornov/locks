@@ -318,6 +318,9 @@ class LocksmithServiceSerializer(serializers.ModelSerializer):
         queryset=AdminService.objects.all(),
         source='admin_service'
     )
+    additional_key_price = serializers.DecimalField(
+        max_digits=10, decimal_places=2, required=False
+    )
     admin_service_name = serializers.SerializerMethodField()
     locksmith_name = serializers.SerializerMethodField()
     is_available = serializers.SerializerMethodField()
@@ -328,6 +331,7 @@ class LocksmithServiceSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'locksmith_name', 'is_available', 'admin_service_id',
             'admin_service_name', 'service_type', 'custom_price',
+            'additional_key_price',  # ✅ new field
             'total_price', 'details', 'approved', 'car_key_details'
         ]
         read_only_fields = ['total_price']
@@ -431,10 +435,11 @@ class BookingSerializer(serializers.ModelSerializer):
     customer = UserSerializer(read_only=True)
     locksmith_service_type = serializers.SerializerMethodField()
     payment_intent_id = serializers.CharField(read_only=True)
-    
-    # Include the new fields
+
+    # New fields
     customer_contact_number = serializers.CharField(max_length=20, required=False, allow_blank=True)
     customer_address = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    number_of_keys = serializers.IntegerField(required=False, allow_null=True)
 
     class Meta:
         model = Booking
