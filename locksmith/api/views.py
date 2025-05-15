@@ -529,36 +529,83 @@ class ServiceViewSet(viewsets.ModelViewSet):
             return LocksmithServices.objects.none()  # Return empty if not a locksmith
 
     
+    # def perform_create(self, serializer):
+    #     user = self.request.user
+
+    #     if not hasattr(user, "locksmith"):
+    #         raise serializers.ValidationError({"error": "User is not associated with a locksmith account."})
+
+    #     locksmith = user.locksmith
+
+    #     admin_settings = AdminSettings.objects.first()
+    #     if not admin_settings:
+    #         raise serializers.ValidationError({"error": "Admin settings not configured."})
+
+    #     commission_amount = admin_settings.commission_amount or Decimal("0")
+    #     percentage = admin_settings.percentage or Decimal("0")
+
+    #     custom_price = Decimal(str(serializer.validated_data.get("custom_price", "0.00")))
+    #     additional_key_price = Decimal(str(serializer.validated_data.get("additional_key_price", "0.00")))
+
+    #     percentage_amount = (custom_price * percentage) / Decimal("100")
+    #     total_price = custom_price + percentage_amount + commission_amount
+
+    #     service_type = serializer.validated_data.get("service_type", "residential")
+    #     car_key_details_data = self.request.data.get("car_key_details", None)
+
+    #     if service_type == "automotive":
+    #         if not car_key_details_data or not isinstance(car_key_details_data, dict):
+    #             raise serializers.ValidationError({"error": "Car key details must be provided as a dictionary for automotive services."})
+
+    #         car_key_details = CarKeyDetails.objects.create(
+    #             manufacturer=car_key_details_data.get("manufacturer"),
+    #             model=car_key_details_data.get("model"),
+    #             year_from=car_key_details_data.get("year_from"),
+    #             year_to=car_key_details_data.get("year_to"),
+    #             number_of_buttons=car_key_details_data.get("number_of_buttons")
+    #         )
+
+    #         serializer.save(
+    #             locksmith=locksmith,
+    #             total_price=total_price,
+    #             approved=False,
+    #             car_key_details=car_key_details
+    #         )
+    #     else:
+    #         serializer.save(
+    #             locksmith=locksmith,
+    #             total_price=total_price,
+    #             approved=False
+    #         )
+    
     def perform_create(self, serializer):
-        """Automatically assign the logged-in locksmith and calculate total price."""
         user = self.request.user
 
-        # Ensure user has an associated Locksmith account
         if not hasattr(user, "locksmith"):
             raise serializers.ValidationError({"error": "User is not associated with a locksmith account."})
 
-        locksmith = user.locksmith  # Now safe to access
+        locksmith = user.locksmith
 
-        # Get admin commission settings
         admin_settings = AdminSettings.objects.first()
         if not admin_settings:
             raise serializers.ValidationError({"error": "Admin settings not configured."})
 
-        # Fetch commission settings
-        commission_amount = admin_settings.commission_amount if admin_settings else Decimal("0")
-        percentage = admin_settings.percentage if admin_settings else Decimal("0")
+        commission_amount = admin_settings.commission_amount or Decimal("0.00")
+        percentage = admin_settings.percentage or Decimal("0.00")
 
-        # Convert custom_price to Decimal
-        custom_price = serializer.validated_data.get("custom_price", Decimal("0"))
-        additional_key_price = serializer.validated_data.get("additional_key_price", Decimal("0.00"))
+        # Get base price and optional additional_key_price
+        base_price = Decimal(str(serializer.validated_data.get("custom_price", "0.00")))
+        additional_key_price = Decimal(str(serializer.validated_data.get("additional_key_price", "0.00")))
 
-        custom_price = Decimal(str(custom_price))
-        additional_key_price = Decimal(str(additional_key_price))
+        # Subtotal before percentage and commission
+        subtotal = base_price + additional_key_price
 
-        percentage_amount = (custom_price * percentage) / Decimal("100")
-        total_price = custom_price + percentage_amount + commission_amount
+        # Calculate percentage on subtotal
+        percentage_amount = (subtotal * percentage) / Decimal("100")
 
-        # Handle Car Key Details for Automotive Services
+        # Final total = subtotal + percentage + commission
+        total_price = subtotal + percentage_amount + commission_amount
+
         service_type = serializer.validated_data.get("service_type", "residential")
         car_key_details_data = self.request.data.get("car_key_details", None)
 
@@ -566,11 +613,11 @@ class ServiceViewSet(viewsets.ModelViewSet):
             if not car_key_details_data or not isinstance(car_key_details_data, dict):
                 raise serializers.ValidationError({"error": "Car key details must be provided as a dictionary for automotive services."})
 
-            # Create a CarKeyDetails instance with extracted dictionary values
             car_key_details = CarKeyDetails.objects.create(
                 manufacturer=car_key_details_data.get("manufacturer"),
                 model=car_key_details_data.get("model"),
-                year=car_key_details_data.get("year"),
+                year_from=car_key_details_data.get("year_from"),
+                year_to=car_key_details_data.get("year_to"),
                 number_of_buttons=car_key_details_data.get("number_of_buttons")
             )
 
@@ -586,6 +633,7 @@ class ServiceViewSet(viewsets.ModelViewSet):
                 total_price=total_price,
                 approved=False
             )
+
     
     
 
@@ -1340,13 +1388,16 @@ class BookingViewSet(viewsets.ModelViewSet):
 
         elif user.role == "locksmith":
             try:
-                locksmith = Locksmith.objects.get(user=user)  
-                return Booking.objects.filter(locksmith_service__locksmith=locksmith)  
+                locksmith = Locksmith.objects.get(user=user)
+                return Booking.objects.filter(
+                    locksmith_service__locksmith=locksmith,
+                    payment_status="paid"
+                )
             except Locksmith.DoesNotExist:
-                return Booking.objects.none()  
+                return Booking.objects.none()
 
         elif user.role == "admin":
-            return Booking.objects.all()  
+            return Booking.objects.all()
 
         return Booking.objects.none() 
         
@@ -1372,6 +1423,36 @@ class BookingViewSet(viewsets.ModelViewSet):
     #         number_of_keys=number_of_keys
     #     )
 
+    # def perform_create(self, serializer):
+    #     user = self.request.user
+
+    #     if not user.is_authenticated:
+    #         raise serializers.ValidationError({"error": "User must be authenticated to create a booking."})
+
+    #     if user.role != "customer":
+    #         raise serializers.ValidationError({"error": "Only customers can create bookings."})
+
+    #     data = self.request.data
+    #     locksmith_service_id = data.get('locksmith_service')
+    #     try:
+    #         locksmith_service = LocksmithServices.objects.get(id=locksmith_service_id)
+    #     except LocksmithServices.DoesNotExist:
+    #         raise serializers.ValidationError({"error": "Invalid locksmith service."})
+
+    #     number_of_keys = int(data.get('number_of_keys', 0))
+    #     additional_key_price = locksmith_service.additional_key_price or 0.0
+
+    #     base_price = locksmith_service.total_price or 0.0
+    #     key_total = number_of_keys * additional_key_price
+    #     total_price = base_price + key_total
+
+    #     booking = serializer.save(
+    #         customer=user,
+    #         locksmith_service=locksmith_service,
+    #         number_of_keys=number_of_keys,
+    #         total_price=total_price,
+    #     )
+    
     def perform_create(self, serializer):
         user = self.request.user
 
@@ -1389,20 +1470,29 @@ class BookingViewSet(viewsets.ModelViewSet):
             raise serializers.ValidationError({"error": "Invalid locksmith service."})
 
         number_of_keys = int(data.get('number_of_keys', 0))
-        additional_key_price = locksmith_service.additional_key_price or 0.0
+        additional_key_price = locksmith_service.additional_key_price or Decimal("0.00")
 
-        base_price = locksmith_service.total_price or 0.0
-        key_total = number_of_keys * additional_key_price
-        total_price = base_price + key_total
+        admin_settings = AdminSettings.objects.first()
+        if not admin_settings:
+            raise serializers.ValidationError({"error": "Admin settings not configured."})
 
-        booking = serializer.save(
+        commission_amount = admin_settings.commission_amount or Decimal("0.00")
+        percentage = admin_settings.percentage or Decimal("0.00")
+
+        base_price = locksmith_service.custom_price or Decimal("0.00")
+        keys_total = number_of_keys * additional_key_price
+
+        subtotal = base_price + keys_total
+        percentage_amount = (subtotal * percentage) / Decimal("100")
+        total_price = subtotal + percentage_amount + commission_amount
+
+        serializer.save(
             customer=user,
             locksmith_service=locksmith_service,
             number_of_keys=number_of_keys,
             total_price=total_price,
         )
-
-    
+        
     
     # @action(detail=True, methods=['post'])
     # def process_payment(self, request, pk=None):
@@ -1543,8 +1633,13 @@ class BookingViewSet(viewsets.ModelViewSet):
     
     @action(detail=True, methods=['post'])
     def complete_payment(self, request, pk=None):
-        """Handles payment completion without using Stripe webhook."""
-        booking = self.get_object()
+        print(f"complete_payment called with pk={pk}")
+
+        # Manual fetch to debug get_object issue
+        try:
+            booking = Booking.objects.get(pk=pk)
+        except Booking.DoesNotExist:
+            return Response({"error": "Booking not found."}, status=404)
 
         if not booking.stripe_session_id:
             return Response({"error": "Missing Stripe Session ID."}, status=400)
@@ -1579,48 +1674,57 @@ class BookingViewSet(viewsets.ModelViewSet):
         Locksmith marks booking as completed and receives payment
         """
         booking = self.get_object()
+        locksmith_service = booking.locksmith_service
+        locksmith = locksmith_service.locksmith
 
-        # ✅ Ensure booking is scheduled
+        # Check booking status
         if booking.status != "Scheduled":
             return Response({'error': 'Booking is not in a valid state to be completed'}, status=400)
 
-        # ✅ Ensure payment exists
+        # Check payment intent exists
         if not booking.payment_intent_id:
             return Response({'error': 'No PaymentIntent ID found. Ensure payment is completed.'}, status=400)
 
-        # ✅ Ensure locksmith is correct
-        locksmith = booking.locksmith_service.locksmith
+        # Check locksmith ownership
         if locksmith.user != request.user:
             return Response({'error': 'Permission denied'}, status=403)
 
-        # ✅ Ensure locksmith has Stripe account
+        # Check locksmith Stripe account
         if not locksmith.stripe_account_id:
             return Response({'error': 'Locksmith does not have a Stripe account'}, status=400)
 
         try:
-            # ✅ Retrieve PaymentIntent
+            # Retrieve PaymentIntent from Stripe
             payment_intent = stripe.PaymentIntent.retrieve(booking.payment_intent_id)
 
             if payment_intent.status == "succeeded":
-                # ✅ Get prices
-                total_price = booking.total_price or Decimal('0.00')
-                custom_price = booking.locksmith_service.custom_price or Decimal('0.00')
+                # Get admin settings
+                admin_settings = AdminSettings.objects.first()
+                commission_amount = admin_settings.commission_amount or Decimal("0.00")
+                percentage = admin_settings.percentage or Decimal("0.00")
 
-                # ✅ Fixed and percentage deductions
-                fixed_fee = Decimal('40.00')
-                ten_percent_fee = custom_price * Decimal('0.10')
-                total_deduction = fixed_fee + ten_percent_fee
+                # Calculate subtotal: base price + additional keys cost
+                base_price = locksmith_service.custom_price or Decimal("0.00")
+                number_of_keys = booking.number_of_keys or 0
+                additional_key_price = locksmith_service.additional_key_price or Decimal("0.00")
+                keys_total = additional_key_price * Decimal(number_of_keys)
 
-                # ✅ Calculate amount to transfer
-                transfer_amount = total_price - total_deduction
+                subtotal = base_price + keys_total
+
+                # Calculate percentage amount (commission)
+                percentage_amount = (subtotal * percentage) / Decimal("100")
+
+                # Calculate transfer amount = total_price - percentage_amount - commission_amount
+                total_price = booking.total_price or Decimal("0.00")
+                transfer_amount = total_price - percentage_amount - commission_amount
 
                 if transfer_amount <= 0:
                     return Response({'error': 'Transfer amount is zero or negative after deductions.'}, status=400)
 
-                # ✅ Convert to cents for Stripe
+                # Convert to cents for Stripe
                 transfer_amount_cents = int(transfer_amount * Decimal('100'))
 
-                # ✅ Make the transfer
+                # Transfer payment to locksmith Stripe account
                 stripe.Transfer.create(
                     amount=transfer_amount_cents,
                     currency="aud",
@@ -1628,7 +1732,7 @@ class BookingViewSet(viewsets.ModelViewSet):
                     transfer_group=f"booking_{booking.id}"
                 )
 
-                # ✅ Update booking status
+                # Update booking status and payment_status
                 booking.status = "Completed"
                 booking.payment_status = "paid"
                 booking.save()
@@ -1636,10 +1740,9 @@ class BookingViewSet(viewsets.ModelViewSet):
                 return Response({
                     'status': 'Booking completed and payment transferred to locksmith',
                     'total_price': str(total_price),
-                    'custom_price': str(custom_price),
-                    'deducted_fixed_fee': str(fixed_fee),
-                    'deducted_10_percent': str(ten_percent_fee),
-                    'total_deduction': str(total_deduction),
+                    'subtotal': str(subtotal),
+                    'percentage_amount': str(percentage_amount),
+                    'commission_amount': str(commission_amount),
                     'transfer_amount': str(transfer_amount)
                 })
 
