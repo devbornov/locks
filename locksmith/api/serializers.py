@@ -383,12 +383,25 @@ class LocksmithServiceSerializer(serializers.ModelSerializer):
 
 
 
+# class AdminServiceSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = AdminService
+#         fields = ['id', 'name', 'description']
+        
 class AdminServiceSerializer(serializers.ModelSerializer):
     class Meta:
         model = AdminService
-        fields = ['id', 'name', 'description']
+        fields = ['id', 'name', 'service_type']
         
-        
+    def validate(self, attrs):
+        name = attrs.get('name')
+        service_type = attrs.get('service_type')
+
+        if AdminService.objects.filter(name__iexact=name, service_type=service_type).exists():
+            raise serializers.ValidationError(
+                f"A service with name '{name}' already exists under service type '{service_type}'."
+            )
+        return attrs
 
 # class LocksmithServiceSerializer(serializers.ModelSerializer):
 #     total_cost = serializers.SerializerMethodField()
@@ -440,6 +453,7 @@ class BookingSerializer(serializers.ModelSerializer):
     customer_contact_number = serializers.CharField(max_length=20, required=False, allow_blank=True)
     customer_address = serializers.CharField(max_length=255, required=False, allow_blank=True)
     number_of_keys = serializers.IntegerField(required=False, allow_null=True)
+    emergency = serializers.BooleanField(required=False)
 
     class Meta:
         model = Booking

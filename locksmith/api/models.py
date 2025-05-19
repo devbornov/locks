@@ -146,14 +146,31 @@ class Service(models.Model):
 
 
 
+# class AdminService(models.Model):
+#     name = models.CharField(max_length=255, unique=True)
+#     # base_price = models.DecimalField(max_digits=10, decimal_places=2)
+#     description = models.TextField(null=True, blank=True)
+    
+#     def __str__(self):
+#         return self.name    
+
 class AdminService(models.Model):
-    name = models.CharField(max_length=255, unique=True)
-    # base_price = models.DecimalField(max_digits=10, decimal_places=2)
-    description = models.TextField(null=True, blank=True)
-    
+    SERVICE_TYPES = [
+        ('smart_lock', 'Smart Lock'),
+        ('emergency', 'Emergency'),
+        ('automotive', 'Automotive'),
+        ('commercial', 'Commercial'),
+        ('residential', 'Residential'),
+    ]
+
+    name = models.CharField(max_length=255)  # Removed unique=True
+    service_type = models.CharField(max_length=20, choices=SERVICE_TYPES, null=True, blank=True)
+
+    class Meta:
+        unique_together = ('name', 'service_type')  # Enforce combo uniqueness
+
     def __str__(self):
-        return self.name    
-    
+        return self.name
 
 class LocksmithServices(models.Model):
     SERVICE_TYPES = [
@@ -335,6 +352,8 @@ class Booking(models.Model):
         max_digits=10, decimal_places=2, blank=True, null=True,
         help_text="Total price including base service and keys"
     )
+    
+    emergency = models.BooleanField(default=False, help_text="Is this an emergency service?")
 
     # Booking status
     status = models.CharField(

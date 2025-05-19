@@ -486,14 +486,28 @@ class AdminLocksmithServiceViewSet(viewsets.ModelViewSet):
 
     
     
+    # @action(detail=False, methods=['get'], permission_classes=[permissions.IsAuthenticated])
+    # def available_services(self, request):
+    #     """
+    #     Get all services added by the admin so the logged-in locksmith can choose.
+    #     """
+    #     services = AdminService.objects.all()
+    #     serializer = AdminServiceSerializer(services, many=True)
+    #     return Response(serializer.data)
+    
     @action(detail=False, methods=['get'], permission_classes=[permissions.IsAuthenticated])
     def available_services(self, request):
         """
         Get all services added by the admin so the logged-in locksmith can choose.
+        Supports optional filtering by service_type.
         """
+        service_type = request.query_params.get('service_type')
         services = AdminService.objects.all()
+        if service_type:
+            services = services.filter(service_type=service_type)
         serializer = AdminServiceSerializer(services, many=True)
         return Response(serializer.data)
+
 
     
     @action(detail=False, methods=['get'], permission_classes=[permissions.IsAdminUser])
@@ -1486,11 +1500,17 @@ class BookingViewSet(viewsets.ModelViewSet):
         percentage_amount = (subtotal * percentage) / Decimal("100")
         total_price = subtotal + percentage_amount + commission_amount
 
+        # Get emergency value from request (default to False if not provided)
+        emergency = data.get('emergency', False)
+        if isinstance(emergency, str):
+            emergency = emergency.lower() in ['true', '1', 'yes']  # Convert string to boolean
+
         serializer.save(
             customer=user,
             locksmith_service=locksmith_service,
             number_of_keys=number_of_keys,
             total_price=total_price,
+            emergency=emergency
         )
         
     
