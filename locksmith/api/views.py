@@ -2418,3 +2418,47 @@ def get_address_suggestions(request):
     suggestions = response.json()
 
     return JsonResponse(suggestions)
+
+
+
+
+
+
+@csrf_exempt
+def stripe_webhook(request):
+    payload = request.body
+    sig_header = request.META.get('HTTP_STRIPE_SIGNATURE')
+    webhook_secret = settings.STRIPE_WEBHOOK_SECRET
+
+    try:
+        event = stripe.Webhook.construct_event(payload, sig_header, webhook_secret)
+    except ValueError:
+        print("❌ Invalid payload received in Stripe webhook")
+        return HttpResponse(status=400)
+    except stripe.error.SignatureVerificationError:
+        print("❌ Invalid Stripe webhook signature")
+        return HttpResponse(status=400)
+
+    if event['type'] == 'checkout.session.completed':
+        session = event['data']['object']
+        session_id = session.get('id')
+        payment_intent = session.get('payment_intent')
+        print(f"🔄 Webhook for session ID: {session_id}, payment_intent: {payment_intent}")
+
+        try:
+            booking = Booking.objects.get(stripe_session_id=session_id)
+            if booking.payment_status != 'paid':
+                booking.payment_status = 'paid'
+                booking.payment_intent_id = payment_intent
+                booking.save()
+                print(f"✅ Booking {booking.id} marked as paid via webhook.")
+            else:
+                print(f"ℹ️ Booking {booking.id} already paid. Skipping update.")
+        except Booking.DoesNotExist:
+            print(f"❌ Booking not found for session ID: {session_id}")
+            return JsonResponse({"error": "Booking not found"}, status=404)
+
+    else:
+        print(f"⚠️ Unhandled event type received: {event['type']}")
+
+    return HttpResponse(status=200)
