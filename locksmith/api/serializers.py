@@ -162,21 +162,22 @@ class CustomerSerializer(serializers.ModelSerializer):
 
 
 class LocksmithSerializer(serializers.ModelSerializer):
-    user = LocksmithCreateSerializer(read_only=True)  # Read-only user data
-    stripe_account_id = serializers.CharField(read_only=True)  # ✅ Add Stripe Account ID
+    user = LocksmithCreateSerializer(read_only=True)
+    stripe_account_id = serializers.CharField(read_only=True)
+    gst_registered = serializers.ChoiceField(choices=[('Yes', 'Yes'), ('No', 'No')], required=False)
 
     class Meta:
         model = Locksmith
         fields = [
             'id', 'user', 'service_area', 'is_approved',
-            'address', 'contact_number', 'latitude', 'longitude',  # ✅ Add these for location-based queries
-            'pcc_file', 'license_file', 'photo', 'is_verified', 'stripe_account_id', 'is_available'
+            'address', 'contact_number', 'latitude', 'longitude',
+            'pcc_file', 'license_file', 'photo', 'is_verified',
+            'stripe_account_id', 'is_available',
+            'gst_registered'  # ✅ Include this field
         ]
 
     def validate_service_area(self, value):
-        # Validate the service area format if necessary
         return value
-
 
 
 
@@ -325,6 +326,7 @@ class LocksmithServiceSerializer(serializers.ModelSerializer):
     locksmith_name = serializers.SerializerMethodField()
     is_available = serializers.SerializerMethodField()
     car_key_details = CarKeyDetailsSerializer(required=False)  # Include CarKeyDetails
+    
 
     class Meta:
         model = LocksmithServices
@@ -364,20 +366,17 @@ class LocksmithServiceSerializer(serializers.ModelSerializer):
             if isinstance(car_key_details_data, dict):
                 # ✅ Ensure the new CarKeyDetails is saved and assigned
                 car_key_details = CarKeyDetails.objects.create(**car_key_details_data)
-                print("Car Key Details Created:", car_key_details.id)  # Debugging
             elif isinstance(car_key_details_data, CarKeyDetails):
                 car_key_details = car_key_details_data
+
+        # ✅ Set auto-approval for now
+        validated_data['approved'] = True
 
         # ✅ Create Locksmith Service instance with the assigned car_key_details
         locksmith_service = LocksmithServices.objects.create(
             **validated_data, 
-            car_key_details=car_key_details  # Ensure it is assigned
+            car_key_details=car_key_details
         )
-
-        print(
-    "Locksmith Service Created:", locksmith_service.id,
-    "with Car Key ID:", locksmith_service.car_key_details.id if locksmith_service.car_key_details else "No Car Key"
-        ) # Debugging
 
         return locksmith_service
 

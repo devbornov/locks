@@ -121,6 +121,44 @@ class CustomerProfileViewSet(viewsets.ModelViewSet):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
 
+# class LocksmithRegisterView(APIView):
+#     permission_classes = [AllowAny]
+
+#     def post(self, request):
+#         serializer = LocksmithCreateSerializer(data=request.data)
+#         if serializer.is_valid():
+#             user = serializer.save()
+#             user.set_password(request.data['password'])  # Hash password
+#             user.role = 'locksmith'  # Explicitly set the role
+#             user.save()
+
+#             # Generate authentication tokens
+#             refresh = RefreshToken.for_user(user)
+
+#             # Generate TOTP details for Locksmith
+#             totp_details = serializer.get_totp_details(user)
+
+#             return Response({
+#                 'message': 'Locksmith registered successfully. Please complete your profile.',
+#                 'user': {
+#                     'id': user.id,
+#                     'username': user.username,
+#                     'email': user.email,
+#                     'role': user.role,
+#                     'totp_enabled': user.totp_enabled,
+#                     'totp_secret': totp_details["totp_secret"],  # TOTP Key in Response
+#                     'totp_qr_code': totp_details["totp_qr_code"],  # Base64 QR Code
+#                     'totp_qr_code_url': totp_details["qr_code_url"],  # QR Image URL
+#                 },
+#                 'access': str(refresh.access_token),
+#                 'refresh': str(refresh)
+#             }, status=status.HTTP_201_CREATED)
+
+#         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
 class LocksmithRegisterView(APIView):
     permission_classes = [AllowAny]
 
@@ -135,8 +173,11 @@ class LocksmithRegisterView(APIView):
             # Generate authentication tokens
             refresh = RefreshToken.for_user(user)
 
-            # Generate TOTP details for Locksmith
+            # Generate TOTP details
             totp_details = serializer.get_totp_details(user)
+
+            # Send admin notification email
+            self.send_admin_notification_email(user)
 
             return Response({
                 'message': 'Locksmith registered successfully. Please complete your profile.',
@@ -146,15 +187,46 @@ class LocksmithRegisterView(APIView):
                     'email': user.email,
                     'role': user.role,
                     'totp_enabled': user.totp_enabled,
-                    'totp_secret': totp_details["totp_secret"],  # TOTP Key in Response
-                    'totp_qr_code': totp_details["totp_qr_code"],  # Base64 QR Code
-                    'totp_qr_code_url': totp_details["qr_code_url"],  # QR Image URL
+                    'totp_secret': totp_details["totp_secret"],
+                    'totp_qr_code': totp_details["totp_qr_code"],
+                    'totp_qr_code_url': totp_details["qr_code_url"],
                 },
                 'access': str(refresh.access_token),
                 'refresh': str(refresh)
             }, status=status.HTTP_201_CREATED)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def send_admin_notification_email(self, user):
+        """🔔 Notify admin when a new locksmith registers"""
+        subject = "New Locksmith Registration Notification"
+        from_email = "contact@lockquick.com.au"
+        recipient_list = ["contact@lockquick.com.au"]  # Replace with actual admin email(s)
+
+        # Context for email template
+        context = {
+            'username': user.username,
+            'email': user.email,
+            'site_url': "https://admin.lockquick.com.au/admin",  # Adjust as needed
+        }
+
+        # Render email content
+        html_content = render_to_string("emails/admin_locksmith_registered.html", context)
+        text_content = strip_tags(html_content)
+
+        email = EmailMultiAlternatives(subject, text_content, from_email, recipient_list)
+        email.attach_alternative(html_content, "text/html")
+
+        # Optional: Attach logo
+        logo_path = os.path.join("static", "images", "logo.png")
+        if os.path.exists(logo_path):
+            with open(logo_path, "rb") as f:
+                email.attach("logo.png", f.read(), "image/png")
+
+        email.send()
+
+
+
     
 class LogoutView(APIView):
     permission_classes = [IsAuthenticated]
@@ -182,30 +254,82 @@ class IsLocksmith(permissions.BasePermission):
     
     
     
+# class LocksmithProfileView(APIView):
+#     permission_classes = [IsAuthenticated]
+
+#     def post(self, request):
+#         """
+#         Create a new locksmith profile for the logged-in user.
+#         """
+#         user = request.user
+
+#         # Ensure the user is a locksmith
+#         if user.role != 'locksmith':
+#             return Response({"error": "Unauthorized. Only locksmiths can create profiles."}, status=status.HTTP_403_FORBIDDEN)
+
+#         # Check if the locksmith profile already exists
+#         if hasattr(user, 'locksmith'):
+#             return Response({"error": "Profile already exists."}, status=status.HTTP_400_BAD_REQUEST)
+
+#         # Create a new locksmith profile
+#         serializer = LocksmithSerializer(data=request.data)
+#         if serializer.is_valid():
+#             serializer.save(user=user)
+#             return Response({"message": "Profile created successfully", "data": serializer.data}, status=status.HTTP_201_CREATED)
+
+#         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 class LocksmithProfileView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        """
-        Create a new locksmith profile for the logged-in user.
-        """
         user = request.user
 
-        # Ensure the user is a locksmith
         if user.role != 'locksmith':
             return Response({"error": "Unauthorized. Only locksmiths can create profiles."}, status=status.HTTP_403_FORBIDDEN)
 
-        # Check if the locksmith profile already exists
         if hasattr(user, 'locksmith'):
             return Response({"error": "Profile already exists."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Create a new locksmith profile
         serializer = LocksmithSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save(user=user)
-            return Response({"message": "Profile created successfully", "data": serializer.data}, status=status.HTTP_201_CREATED)
+
+            # Send notification to admin about new locksmith profile awaiting approval
+            self.send_admin_notification_email(user)
+
+            return Response({
+                "message": "Profile created successfully. Waiting for admin approval.",
+                "data": serializer.data
+            }, status=status.HTTP_201_CREATED)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def send_admin_notification_email(self, user):
+        """🔔 Notify admin when a new locksmith registers"""
+        subject = "New Locksmith Registration Notification - Awaiting Approval"
+        from_email = "contact@lockquick.com.au"
+        recipient_list = ["contact@lockquick.com.au"]  # Replace with your admin email(s)
+
+        context = {
+            'username': user.username,
+            'email': user.email,
+            'site_url': "https://admin.lockquick.com.au/admin",  # Admin panel URL
+            'message': "A new locksmith profile has been created and is waiting for your approval."
+        }
+
+        html_content = render_to_string("emails/admin_locksmith_registered.html", context)
+        text_content = strip_tags(html_content)
+
+        email = EmailMultiAlternatives(subject, text_content, from_email, recipient_list)
+        email.attach_alternative(html_content, "text/html")
+
+        logo_path = os.path.join("static", "images", "logo.png")
+        if os.path.exists(logo_path):
+            with open(logo_path, "rb") as f:
+                email.attach("logo.png", f.read(), "image/png")
+
+        email.send()
 
     def put(self, request):
         """
@@ -464,7 +588,7 @@ class AdminLocksmithServiceViewSet(viewsets.ModelViewSet):
 
             # Serialize service data
             service_data = LocksmithServiceSerializer(service).data
-            service_data.pop("custom_price", None)  # Remove custom_price from response
+            # service_data.pop("custom_price", None)  # Remove custom_price from response
 
             # Ensure car_key_details appears only once
             car_key_details = service_data.pop("car_key_details", None)
@@ -607,17 +731,9 @@ class ServiceViewSet(viewsets.ModelViewSet):
         commission_amount = admin_settings.commission_amount or Decimal("0.00")
         percentage = admin_settings.percentage or Decimal("0.00")
 
-        # Get base price and optional additional_key_price
         base_price = Decimal(str(serializer.validated_data.get("custom_price", "0.00")))
-        additional_key_price = Decimal(str(serializer.validated_data.get("additional_key_price", "0.00")))
-
-        # Subtotal before percentage and commission
-        subtotal = base_price + additional_key_price
-
-        # Calculate percentage on subtotal
+        subtotal = base_price
         percentage_amount = (subtotal * percentage) / Decimal("100")
-
-        # Final total = subtotal + percentage + commission
         total_price = subtotal + percentage_amount + commission_amount
 
         service_type = serializer.validated_data.get("service_type", "residential")
@@ -647,6 +763,39 @@ class ServiceViewSet(viewsets.ModelViewSet):
                 total_price=total_price,
                 approved=False
             )
+
+        # Send admin notification email using your detailed method
+        self.send_admin_notification_email(user=locksmith.user, service_type=service_type, base_price=base_price, total_price=total_price)
+
+    def send_admin_notification_email(self, user, service_type, base_price, total_price):
+        """🔔 Notify admin when a new locksmith service is created"""
+        subject = "New Locksmith Service Submitted"
+        from_email = "contact@lockquick.com.au"
+        recipient_list = ["contact@lockquick.com.au"]  # Replace with your admin email(s)
+
+        context = {
+            'username': user.username,
+            'email': user.email,
+            'site_url': "https://admin.lockquick.com.au/admin",  # Admin panel URL
+            'service_type': service_type,
+            'base_price': base_price,
+            'total_price': total_price,
+            'message': "A new locksmith service has been submitted and is waiting for approval."
+        }
+
+        html_content = render_to_string("emails/admin_locksmith_service_submitted.html", context)
+        text_content = strip_tags(html_content)
+
+        email = EmailMultiAlternatives(subject, text_content, from_email, recipient_list)
+        email.attach_alternative(html_content, "text/html")
+
+        logo_path = os.path.join("static", "images", "logo.png")
+        if os.path.exists(logo_path):
+            with open(logo_path, "rb") as f:
+                email.attach("logo.png", f.read(), "image/png")
+
+        email.send()
+
 
     
     
@@ -1057,25 +1206,41 @@ class LocksmithViewSet(viewsets.ModelViewSet):
       
         
 
-    # Twilio Credentials (Replace with actual credentials)
-TWILIO_ACCOUNT_SID = "ACba1e3f20eb7083c73471a9e87c04802c"
-TWILIO_AUTH_TOKEN = "ca2a6daa04eed144e8bb9af1269a265e"
-TWILIO_PHONE_NUMBER = "+12233572123"
+#     # Twilio Credentials (Replace with actual credentials)
+# TWILIO_ACCOUNT_SID = "ACba1e3f20eb7083c73471a9e87c04802c"
+# TWILIO_AUTH_TOKEN = "ca2a6daa04eed144e8bb9af1269a265e"
+# TWILIO_PHONE_NUMBER = "+12233572123"
 
-def call_locksmith(locksmith_phone, locksmith_name, booking_id):
-    """Function to call the locksmith after successful payment."""
+# def call_locksmith(locksmith_phone, locksmith_name, booking_id):
+#     """Function to call the locksmith after successful payment."""
+#     client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+    
+#     message = f"Hello {locksmith_name}, you have received a new booking. Booking ID: {booking_id}. Please check your dashboard for details."
+    
+#     call = client.calls.create(
+#         twiml=f'<Response><Say>{message}</Say></Response>',
+#         to=locksmith_phone,
+#         from_=TWILIO_PHONE_NUMBER
+#     )
+    
+#     print(f"📞 Call triggered to Locksmith {locksmith_name} (Phone: {locksmith_phone}) - Call SID: {call.sid}")
+#     return call.sid
+
+from twilio.rest import Client
+
+TWILIO_ACCOUNT_SID = "ACb9993d68e0c490eb54de4f61018d5691"
+TWILIO_AUTH_TOKEN = "6e7b89c3e473c1a92a9d31e6868fee66"
+TWILIO_PHONE_NUMBER = "+12185229562"
+
+def send_sms(to_phone, message):
     client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
-    
-    message = f"Hello {locksmith_name}, you have received a new booking. Booking ID: {booking_id}. Please check your dashboard for details."
-    
-    call = client.calls.create(
-        twiml=f'<Response><Say>{message}</Say></Response>',
-        to=locksmith_phone,
-        from_=TWILIO_PHONE_NUMBER
+    sms = client.messages.create(
+        body=message,
+        from_=TWILIO_PHONE_NUMBER,
+        to=to_phone
     )
-    
-    print(f"📞 Call triggered to Locksmith {locksmith_name} (Phone: {locksmith_phone}) - Call SID: {call.sid}")
-    return call.sid
+    print(f"📩 SMS sent to {to_phone} - SID: {sms.sid}")
+    return sms.sid
 
 
 # class BookingViewSet(viewsets.ModelViewSet):
@@ -1394,26 +1559,34 @@ class BookingViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated] 
     
     def get_queryset(self):
-        """Filter bookings based on logged-in user role."""
-        user = self.request.user  
+        """Filter bookings based on logged-in user role and query params."""
+        user = self.request.user
+        payment_status = self.request.query_params.get("payment_status")
+        emergency = self.request.query_params.get("emergency")
+
+        bookings = Booking.objects.none()
 
         if user.role == "customer":
-            return Booking.objects.filter(customer=user)
+            bookings = Booking.objects.filter(customer=user)
 
         elif user.role == "locksmith":
             try:
                 locksmith = Locksmith.objects.get(user=user)
-                return Booking.objects.filter(
-                    locksmith_service__locksmith=locksmith,
-                    payment_status="paid"
-                )
+                bookings = Booking.objects.filter(locksmith_service__locksmith=locksmith)
             except Locksmith.DoesNotExist:
                 return Booking.objects.none()
 
         elif user.role == "admin":
-            return Booking.objects.all()
+            bookings = Booking.objects.all()
 
-        return Booking.objects.none() 
+        # Apply filters if provided
+        if payment_status:
+            bookings = bookings.filter(payment_status=payment_status)
+
+        if emergency in ["true", "false"]:
+            bookings = bookings.filter(emergency=(emergency.lower() == "true"))
+
+        return bookings
         
     # def perform_create(self, serializer):
     #     user = self.request.user
@@ -1651,11 +1824,44 @@ class BookingViewSet(viewsets.ModelViewSet):
     #         return Response({'error': str(e)}, status=400)
     
     
+    # @action(detail=True, methods=['post'])
+    # def complete_payment(self, request, pk=None):
+    #     print(f"complete_payment called with pk={pk}")
+
+    #     # Manual fetch to debug get_object issue
+    #     try:
+    #         booking = Booking.objects.get(pk=pk)
+    #     except Booking.DoesNotExist:
+    #         return Response({"error": "Booking not found."}, status=404)
+
+    #     if not booking.stripe_session_id:
+    #         return Response({"error": "Missing Stripe Session ID."}, status=400)
+
+    #     try:
+    #         # Retrieve Stripe Checkout Session
+    #         session = stripe.checkout.Session.retrieve(booking.stripe_session_id)
+
+    #         if session.payment_status == "paid":
+    #             booking.payment_intent_id = session.payment_intent
+    #             booking.payment_status = "paid"
+    #             booking.status = "Scheduled"
+    #             booking.save()
+
+    #             locksmith = booking.locksmith_service.locksmith
+    #             # call_locksmith(locksmith.contact_number, locksmith.user.get_full_name(), booking.id)
+
+    #             return Response({
+    #                 "status": "Payment confirmed and booking scheduled.",
+    #                 "message": "Locksmith notified via automated call."
+    #             })
+
+    #         return Response({"error": "Payment is not completed yet."}, status=400)
+
+    #     except stripe.error.StripeError as e:
+    #         return Response({"error": str(e)}, status=400)
+    
     @action(detail=True, methods=['post'])
     def complete_payment(self, request, pk=None):
-        print(f"complete_payment called with pk={pk}")
-
-        # Manual fetch to debug get_object issue
         try:
             booking = Booking.objects.get(pk=pk)
         except Booking.DoesNotExist:
@@ -1665,7 +1871,6 @@ class BookingViewSet(viewsets.ModelViewSet):
             return Response({"error": "Missing Stripe Session ID."}, status=400)
 
         try:
-            # Retrieve Stripe Checkout Session
             session = stripe.checkout.Session.retrieve(booking.stripe_session_id)
 
             if session.payment_status == "paid":
@@ -1675,11 +1880,37 @@ class BookingViewSet(viewsets.ModelViewSet):
                 booking.save()
 
                 locksmith = booking.locksmith_service.locksmith
-                # call_locksmith(locksmith.contact_number, locksmith.user.get_full_name(), booking.id)
+                customer = booking.customer
+
+                # Locksmith SMS with customer details
+                locksmith_message = (
+                    f"Hello {locksmith.user.get_full_name()},\n"
+                    f"You have a new booking (ID: {booking.id}) from customer {customer.get_full_name()}.\n"
+                    f"Service: {booking.locksmith_service.admin_service.name}\n"
+                    f"Customer Address: {booking.customer_address or 'N/A'}\n"
+                    f"Customer Phone: {booking.customer_contact_number or customer.phone_number or 'N/A'}\n"
+                    f"Scheduled Date: {booking.scheduled_date.strftime('%Y-%m-%d %H:%M')}\n"
+                    f"Emergency Service: {'Yes' if booking.emergency else 'No'}\n"
+                    f"Thank you."
+                )
+                send_sms(locksmith.contact_number, locksmith_message)
+
+
+                # Customer SMS with locksmith details
+                customer_message = (
+                    f"Hello {customer.get_full_name()},\n"
+                    f"Your payment for booking ID {booking.id} is successful.\n"
+                    f"Locksmith: {locksmith.user.get_full_name()}\n"
+                    f"Locksmith Phone: {locksmith.contact_number or 'N/A'}\n"
+                    f"Service: {booking.locksmith_service.admin_service.name}\n"
+                    f"Scheduled Date: {booking.scheduled_date.strftime('%Y-%m-%d %H:%M')}\n"
+                    f"Thank you for choosing our service!"
+                )
+                send_sms(booking.customer_contact_number or customer.phone_number, customer_message)
 
                 return Response({
                     "status": "Payment confirmed and booking scheduled.",
-                    "message": "Locksmith notified via automated call."
+                    "message": "SMS notifications sent to locksmith and customer."
                 })
 
             return Response({"error": "Payment is not completed yet."}, status=400)
@@ -2427,38 +2658,32 @@ def get_address_suggestions(request):
 @csrf_exempt
 def stripe_webhook(request):
     payload = request.body
+    print("📦 Raw Payload:", payload)  # Debug
+
     sig_header = request.META.get('HTTP_STRIPE_SIGNATURE')
     webhook_secret = settings.STRIPE_WEBHOOK_SECRET
 
     try:
         event = stripe.Webhook.construct_event(payload, sig_header, webhook_secret)
-    except ValueError:
-        print("❌ Invalid payload received in Stripe webhook")
+    except Exception as e:
+        print("❌ Webhook error:", str(e))
         return HttpResponse(status=400)
-    except stripe.error.SignatureVerificationError:
-        print("❌ Invalid Stripe webhook signature")
-        return HttpResponse(status=400)
+
+    print("✅ Event type:", event['type'])
 
     if event['type'] == 'checkout.session.completed':
         session = event['data']['object']
         session_id = session.get('id')
-        payment_intent = session.get('payment_intent')
-        print(f"🔄 Webhook for session ID: {session_id}, payment_intent: {payment_intent}")
+        print("🔎 Session ID:", session_id)
 
         try:
             booking = Booking.objects.get(stripe_session_id=session_id)
-            if booking.payment_status != 'paid':
-                booking.payment_status = 'paid'
-                booking.payment_intent_id = payment_intent
-                booking.save()
-                print(f"✅ Booking {booking.id} marked as paid via webhook.")
-            else:
-                print(f"ℹ️ Booking {booking.id} already paid. Skipping update.")
+            booking.payment_status = 'paid'
+            booking.payment_intent_id = session.get('payment_intent')
+            booking.save()
+            print(f"✅ Booking {booking.id} marked as paid via webhook.")
         except Booking.DoesNotExist:
             print(f"❌ Booking not found for session ID: {session_id}")
             return JsonResponse({"error": "Booking not found"}, status=404)
-
-    else:
-        print(f"⚠️ Unhandled event type received: {event['type']}")
 
     return HttpResponse(status=200)

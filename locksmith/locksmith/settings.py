@@ -211,7 +211,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'Asia/Kolkata'
+TIME_ZONE = 'Australia/Sydney'
 
 USE_I18N = True
 
@@ -290,7 +290,7 @@ EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 # EMAIL_HOST = 'smtp.gmail.com'
 # EMAIL_PORT = 587
 # EMAIL_USE_TLS = True
-# EMAIL_HOST_USER = 'developerbornov@gmail.com'  # Replace with your Gmail
+# EMAIL_HOST_USER = 'contact@lockquick.com.au'  # Replace with your Gmail
 # EMAIL_HOST_PASSWORD = 'tdpj cknd mwws fgmb'  # Replace with your App Password
 # DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
@@ -304,10 +304,14 @@ EMAIL_HOST_PASSWORD = 'w4dbqH5waUWUCAx'  # Replace with your actual password
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 
+DEFAULT_ADMIN_EMAIL = "contact@lockquick.com.au"         # change to actual admin email
+DEFAULT_FROM_EMAIL = "noreply@example.com"        # change to verified sender email
+
+
 
 # STRIPE_WEBHOOK_SECRET = "whsec_qJVrp6qPW6McXqaszANb5YVJG6NrJz2w"
-STRIPE_WEBHOOK_SECRET = "whsec_qybAt6OdcP3osUHznayFa5Mxxno0ICHi"
-# STRIPE_WEBHOOK_SECRET = "whsec_873d05a458aad835c4eeb1ebc7bdf471c6bcc8c1071a1d3c7ae4797e605e20a7"
+# STRIPE_WEBHOOK_SECRET = "whsec_qybAt6OdcP3osUHznayFa5Mxxno0ICHi"
+STRIPE_WEBHOOK_SECRET = "whsec_873d05a458aad835c4eeb1ebc7bdf471c6bcc8c1071a1d3c7ae4797e605e20a7"
 
 
 

@@ -74,6 +74,11 @@ def validate_longitude(value):
         raise ValidationError("Longitude must be between -180 and 180.")
 
 class Locksmith(models.Model):
+    GST_CHOICES = [
+        ('Yes', 'Yes'),
+        ('No', 'No'),
+    ]
+
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     service_area = models.CharField(max_length=255, default="")
     stripe_account_id = models.CharField(max_length=255, blank=True, null=True)
@@ -93,8 +98,19 @@ class Locksmith(models.Model):
     is_verified = models.BooleanField(default=False)
     is_available = models.BooleanField(default=True, blank=True, null=True)
 
+    # Updated GST field
+    gst_registered = models.CharField(
+        max_length=3,
+        choices=GST_CHOICES,
+        default='No',
+        blank=True,
+        null=True
+    )
+
     def __str__(self):
         return f"{self.user.username} - {self.service_area}"
+
+
 
 
 
