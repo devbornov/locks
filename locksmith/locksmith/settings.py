@@ -156,28 +156,28 @@ STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 #     }
 # }
 
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.mysql',
-#         'NAME': 'locksmith1',
-#         'USER': 'root',
-#         'PASSWORD': 'root',
-#         'HOST': 'localhost',  # This matches the name of the db service in docker-compose.yml
-#         'PORT': '3308',
-#     }
-# }
-
-
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'locksmith1',
         'USER': 'root',
-        'PASSWORD': 'Db@2025#Lockquick',
-        'HOST': 'localhost',  # Change for RDS
-        'PORT': '3306',  # Default MySQL port
+        'PASSWORD': 'root',
+        'HOST': 'localhost',  # This matches the name of the db service in docker-compose.yml
+        'PORT': '3308',
     }
 }
+
+
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.mysql',
+#         'NAME': 'locksmith1',
+#         'USER': 'root',
+#         'PASSWORD': 'Db@2025#Lockquick',
+#         'HOST': 'localhost',  # Change for RDS
+#         'PORT': '3306',  # Default MySQL port
+#     }
+# }
 
 
 
@@ -310,8 +310,8 @@ DEFAULT_FROM_EMAIL = "noreply@example.com"        # change to verified sender em
 
 
 # STRIPE_WEBHOOK_SECRET = "whsec_qJVrp6qPW6McXqaszANb5YVJG6NrJz2w"
-# STRIPE_WEBHOOK_SECRET = "whsec_qybAt6OdcP3osUHznayFa5Mxxno0ICHi"
-STRIPE_WEBHOOK_SECRET = "whsec_873d05a458aad835c4eeb1ebc7bdf471c6bcc8c1071a1d3c7ae4797e605e20a7"
+STRIPE_WEBHOOK_SECRET = "whsec_qybAt6OdcP3osUHznayFa5Mxxno0ICHi"
+# STRIPE_WEBHOOK_SECRET = "whsec_873d05a458aad835c4eeb1ebc7bdf471c6bcc8c1071a1d3c7ae4797e605e20a7"
 
 
 

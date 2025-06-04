@@ -356,7 +356,11 @@ class Booking(models.Model):
     customer = models.ForeignKey(User, on_delete=models.CASCADE, related_name="bookings")
     locksmith_service = models.ForeignKey(LocksmithServices, on_delete=models.CASCADE)
     scheduled_date = models.DateTimeField()
-    
+    locksmith_status = models.CharField(
+        max_length=10,
+        choices=[('PENDING', 'Pending'), ('APPROVED', 'Approved'), ('DENIED', 'Denied')],
+        default='PENDING'
+    )
     # New customer fields
     customer_contact_number = models.CharField(max_length=20, blank=True, null=True)
     customer_address = models.TextField(blank=True, null=True)
@@ -390,6 +394,15 @@ class Booking(models.Model):
         default="pending"
     )
     image = models.ImageField(upload_to='booking_images/', blank=True, null=True, help_text="Optional image related to the booking")
+    
+    is_customer_confirmed = models.BooleanField(default=False)
+    is_locksmith_confirmed = models.BooleanField(default=False)
+
+    def check_completion(self):
+        if self.is_customer_confirmed and self.is_locksmith_confirmed:
+            self.status = 'Completed'
+            self.payment_status = 'paid'
+            self.save()
 
     def complete(self):
         self.status = 'Completed'

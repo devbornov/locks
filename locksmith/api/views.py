@@ -1720,7 +1720,7 @@ class BookingViewSet(viewsets.ModelViewSet):
     
 
     
-    @action(detail=True, methods=['post'])
+    @action(detail=True, methods=['post'],permission_classes=[IsCustomer])
     def process_payment(self, request, pk=None):
         booking = self.get_object()
 
@@ -1860,12 +1860,69 @@ class BookingViewSet(viewsets.ModelViewSet):
     #     except stripe.error.StripeError as e:
     #         return Response({"error": str(e)}, status=400)
     
-    @action(detail=True, methods=['post'])
+    # @action(detail=True, methods=['post'])
+    # def complete_payment(self, request, pk=None):
+    #     try:
+    #         booking = Booking.objects.get(pk=pk)
+    #     except Booking.DoesNotExist:
+    #         return Response({"error": "Booking not found."}, status=404)
+
+    #     if not booking.stripe_session_id:
+    #         return Response({"error": "Missing Stripe Session ID."}, status=400)
+
+    #     try:
+    #         session = stripe.checkout.Session.retrieve(booking.stripe_session_id)
+
+    #         if session.payment_status == "paid":
+    #             booking.payment_intent_id = session.payment_intent
+    #             booking.payment_status = "paid"
+    #             booking.status = "Scheduled"
+    #             booking.save()
+
+    #             locksmith = booking.locksmith_service.locksmith
+    #             customer = booking.customer
+
+    #             # Locksmith SMS with customer details
+    #             locksmith_message = (
+    #                 f"Hello {locksmith.user.get_full_name()},\n"
+    #                 f"You have a new booking (ID: {booking.id}) from customer {customer.get_full_name()}.\n"
+    #                 f"Service: {booking.locksmith_service.admin_service.name}\n"
+    #                 f"Customer Address: {booking.customer_address or 'N/A'}\n"
+    #                 f"Customer Phone: {booking.customer_contact_number or customer.phone_number or 'N/A'}\n"
+    #                 f"Scheduled Date: {booking.scheduled_date.strftime('%Y-%m-%d %H:%M')}\n"
+    #                 f"Emergency Service: {'Yes' if booking.emergency else 'No'}\n"
+    #                 f"Thank you."
+    #             )
+    #             send_sms(locksmith.contact_number, locksmith_message)
+
+
+    #             # Customer SMS with locksmith details
+    #             customer_message = (
+    #                 f"Hello {customer.get_full_name()},\n"
+    #                 f"Your payment for booking ID {booking.id} is successful.\n"
+    #                 f"Locksmith: {locksmith.user.get_full_name()}\n"
+    #                 f"Locksmith Phone: {locksmith.contact_number or 'N/A'}\n"
+    #                 f"Service: {booking.locksmith_service.admin_service.name}\n"
+    #                 f"Scheduled Date: {booking.scheduled_date.strftime('%Y-%m-%d %H:%M')}\n"
+    #                 f"Thank you for choosing our service!"
+    #             )
+    #             send_sms(booking.customer_contact_number or customer.phone_number, customer_message)
+
+    #             return Response({
+    #                 "status": "Payment confirmed and booking scheduled.",
+    #                 "message": "SMS notifications sent to locksmith and customer."
+    #             })
+
+    #         return Response({"error": "Payment is not completed yet."}, status=400)
+
+    #     except stripe.error.StripeError as e:
+    #         return Response({"error": str(e)}, status=400)
+    
+
+
+    @action(detail=True, methods=['post'],permission_classes=[IsCustomer])
     def complete_payment(self, request, pk=None):
-        try:
-            booking = Booking.objects.get(pk=pk)
-        except Booking.DoesNotExist:
-            return Response({"error": "Booking not found."}, status=404)
+        booking = self.get_object()
 
         if not booking.stripe_session_id:
             return Response({"error": "Missing Stripe Session ID."}, status=400)
@@ -1882,7 +1939,16 @@ class BookingViewSet(viewsets.ModelViewSet):
                 locksmith = booking.locksmith_service.locksmith
                 customer = booking.customer
 
-                # Locksmith SMS with customer details
+                # ✅ Send SMS to customer: payment success, wait for approval
+                customer_message = (
+                    f"Hello {customer.get_full_name()},\n"
+                    f"Your payment for the booking (ID: {booking.id}) is successful.\n"
+                    f"Please wait for the locksmith to approve your request.\n"
+                    f"You will be notified once it's approved or denied."
+                )
+                send_sms(booking.customer_contact_number or customer.phone_number, customer_message)
+
+                # ✅ Notify locksmith about the new booking
                 locksmith_message = (
                     f"Hello {locksmith.user.get_full_name()},\n"
                     f"You have a new booking (ID: {booking.id}) from customer {customer.get_full_name()}.\n"
@@ -1891,35 +1957,192 @@ class BookingViewSet(viewsets.ModelViewSet):
                     f"Customer Phone: {booking.customer_contact_number or customer.phone_number or 'N/A'}\n"
                     f"Scheduled Date: {booking.scheduled_date.strftime('%Y-%m-%d %H:%M')}\n"
                     f"Emergency Service: {'Yes' if booking.emergency else 'No'}\n"
+                    f"Please approve or deny this booking."
                     f"Thank you."
                 )
                 send_sms(locksmith.contact_number, locksmith_message)
 
-
-                # Customer SMS with locksmith details
-                customer_message = (
-                    f"Hello {customer.get_full_name()},\n"
-                    f"Your payment for booking ID {booking.id} is successful.\n"
-                    f"Locksmith: {locksmith.user.get_full_name()}\n"
-                    f"Locksmith Phone: {locksmith.contact_number or 'N/A'}\n"
-                    f"Service: {booking.locksmith_service.admin_service.name}\n"
-                    f"Scheduled Date: {booking.scheduled_date.strftime('%Y-%m-%d %H:%M')}\n"
-                    f"Thank you for choosing our service!"
-                )
-                send_sms(booking.customer_contact_number or customer.phone_number, customer_message)
-
                 return Response({
                     "status": "Payment confirmed and booking scheduled.",
-                    "message": "SMS notifications sent to locksmith and customer."
+                    "message": "SMS notifications sent to customer and locksmith."
                 })
 
             return Response({"error": "Payment is not completed yet."}, status=400)
 
         except stripe.error.StripeError as e:
             return Response({"error": str(e)}, status=400)
-    
+        
+        
+        
+    @action(detail=True, methods=['post'], permission_classes=[IsLocksmith])
+    def approve_booking(self, request, pk=None):
+        booking = self.get_object()
+        user = request.user
 
-    @action(detail=True, methods=['post'])
+        if user.role != 'locksmith':
+            return Response({'error': 'Only locksmiths can approve bookings.'}, status=403)
+
+        if booking.locksmith_status != 'PENDING':
+            return Response({'error': 'Booking has already been responded to.'}, status=400)
+
+        if booking.payment_status != 'paid':
+            return Response({'error': 'Cannot approve booking. Payment is not completed.'}, status=400)
+
+        booking.locksmith_status = 'APPROVED'
+        booking.save()
+
+        customer = booking.customer
+        locksmith = booking.locksmith_service.locksmith
+
+        # Notify customer
+        customer_message = (
+            f"Hello {customer.get_full_name()},\n"
+            f"Your booking (ID: {booking.id}) has been accepted by the locksmith.\n"
+            f"Locksmith: {locksmith.user.get_full_name()}\n"
+            f"Contact: {locksmith.contact_number}\n"
+            f"Scheduled Date: {booking.scheduled_date.strftime('%Y-%m-%d %H:%M')}\n"
+            f"Thank you for choosing our service!"
+        )
+        send_sms(booking.customer_contact_number or customer.phone_number, customer_message)
+
+        # Notify locksmith again (optional)
+        locksmith_message = (
+            f"Hello {locksmith.user.get_full_name()},\n"
+            f"You have a new booking (ID: {booking.id}) from customer {customer.get_full_name()}.\n"
+            f"Service: {booking.locksmith_service.admin_service.name}\n"
+            f"Customer Address: {booking.customer_address or 'N/A'}\n"
+            f"Customer Phone: {booking.customer_contact_number or customer.phone_number or 'N/A'}\n"
+            f"Scheduled Date: {booking.scheduled_date.strftime('%Y-%m-%d %H:%M')}\n"
+            f"Emergency Service: {'Yes' if booking.emergency else 'No'}\n"
+            f"Thank you.\n"
+        )
+        send_sms(locksmith.contact_number, locksmith_message)
+
+        return Response({'status': 'Booking approved and customer notified.'})
+
+    @action(detail=True, methods=['post'], permission_classes=[IsLocksmith])
+    def deny_booking(self, request, pk=None):
+        booking = self.get_object()
+        user = request.user
+
+        if user.role != 'locksmith':
+            return Response({'error': 'Only locksmiths can deny bookings.'}, status=403)
+
+        if booking.locksmith_status != 'PENDING':
+            return Response({'error': 'Booking has already been responded to.'}, status=400)
+
+        if booking.payment_status != 'paid':
+            return Response({'error': 'Cannot deny booking. Payment is not completed.'}, status=400)
+
+        booking.locksmith_status = 'DENIED'
+        booking.status = 'Cancelled'
+        booking.payment_status = 'refunded'
+        booking.save()
+
+        customer = booking.customer
+
+        # Notify customer about denial
+        customer_message = (
+            f"Hello {customer.get_full_name()},\n"
+            f"Your booking (ID: {booking.id}) has been denied by the locksmith.\n"
+            f"A refund will be processed, and you may choose another service provider from LockQuick.\n"
+            f"Visit https://lockquick.com.au/ to book again.\n"
+            f"Thank you for choosing LockQuick."
+        )
+        send_sms(booking.customer_contact_number or customer.phone_number, customer_message)
+
+        # TODO: Implement Stripe refund logic here
+
+        return Response({'status': 'Booking denied and customer notified.'})
+
+
+
+    # @action(detail=True, methods=['post'])
+    # def complete(self, request, pk=None):
+    #     """
+    #     Locksmith marks booking as completed and receives payment
+    #     """
+    #     booking = self.get_object()
+    #     locksmith_service = booking.locksmith_service
+    #     locksmith = locksmith_service.locksmith
+
+    #     # Check booking status
+    #     if booking.status != "Scheduled":
+    #         return Response({'error': 'Booking is not in a valid state to be completed'}, status=400)
+
+    #     # Check payment intent exists
+    #     if not booking.payment_intent_id:
+    #         return Response({'error': 'No PaymentIntent ID found. Ensure payment is completed.'}, status=400)
+
+    #     # Check locksmith ownership
+    #     if locksmith.user != request.user:
+    #         return Response({'error': 'Permission denied'}, status=403)
+
+    #     # Check locksmith Stripe account
+    #     if not locksmith.stripe_account_id:
+    #         return Response({'error': 'Locksmith does not have a Stripe account'}, status=400)
+
+    #     try:
+    #         # Retrieve PaymentIntent from Stripe
+    #         payment_intent = stripe.PaymentIntent.retrieve(booking.payment_intent_id)
+
+    #         if payment_intent.status == "succeeded":
+    #             # Get admin settings
+    #             admin_settings = AdminSettings.objects.first()
+    #             commission_amount = admin_settings.commission_amount or Decimal("0.00")
+    #             percentage = admin_settings.percentage or Decimal("0.00")
+
+    #             # Calculate subtotal: base price + additional keys cost
+    #             base_price = locksmith_service.custom_price or Decimal("0.00")
+    #             number_of_keys = booking.number_of_keys or 0
+    #             additional_key_price = locksmith_service.additional_key_price or Decimal("0.00")
+    #             keys_total = additional_key_price * Decimal(number_of_keys)
+
+    #             subtotal = base_price + keys_total
+
+    #             # Calculate percentage amount (commission)
+    #             percentage_amount = (subtotal * percentage) / Decimal("100")
+
+    #             # Calculate transfer amount = total_price - percentage_amount - commission_amount
+    #             total_price = booking.total_price or Decimal("0.00")
+    #             transfer_amount = total_price - percentage_amount - commission_amount
+
+    #             if transfer_amount <= 0:
+    #                 return Response({'error': 'Transfer amount is zero or negative after deductions.'}, status=400)
+
+    #             # Convert to cents for Stripe
+    #             transfer_amount_cents = int(transfer_amount * Decimal('100'))
+
+    #             # Transfer payment to locksmith Stripe account
+    #             stripe.Transfer.create(
+    #                 amount=transfer_amount_cents,
+    #                 currency="aud",
+    #                 destination=locksmith.stripe_account_id,
+    #                 transfer_group=f"booking_{booking.id}"
+    #             )
+
+    #             # Update booking status and payment_status
+    #             booking.status = "Completed"
+    #             booking.payment_status = "paid"
+    #             booking.save()
+
+    #             return Response({
+    #                 'status': 'Booking completed and payment transferred to locksmith',
+    #                 'total_price': str(total_price),
+    #                 'subtotal': str(subtotal),
+    #                 'percentage_amount': str(percentage_amount),
+    #                 'commission_amount': str(commission_amount),
+    #                 'transfer_amount': str(transfer_amount)
+    #             })
+
+    #         else:
+    #             return Response({'error': f'Invalid PaymentIntent status: {payment_intent.status}'}, status=400)
+
+    #     except stripe.error.StripeError as e:
+    #         return Response({'error': str(e)}, status=400)
+    
+    
+    @action(detail=True, methods=['post'],permission_classes=[IsLocksmith])
     def complete(self, request, pk=None):
         """
         Locksmith marks booking as completed and receives payment
@@ -1927,6 +2150,13 @@ class BookingViewSet(viewsets.ModelViewSet):
         booking = self.get_object()
         locksmith_service = booking.locksmith_service
         locksmith = locksmith_service.locksmith
+
+        # Check if locksmith_status is APPROVED
+        if booking.locksmith_status != "APPROVED":
+            return Response(
+                {'error': 'Booking must be approved by the locksmith before completion.'},
+                status=400
+            )
 
         # Check booking status
         if booking.status != "Scheduled":
@@ -2005,6 +2235,118 @@ class BookingViewSet(viewsets.ModelViewSet):
 
 
 
+
+
+    # @action(detail=True, methods=['post'])
+    # def complete(self, request, pk=None):
+    #     """
+    #     Booking completion confirmation by locksmith or customer.
+    #     If both confirm, release payment to locksmith.
+    #     """
+    #     booking = self.get_object()
+    #     user = request.user
+
+    #     # Check valid booking state
+    #     if booking.status != "Scheduled":
+    #         return Response({'error': 'Booking is not in a valid state to be completed'}, status=400)
+
+    #     # Determine who is confirming the completion
+    #     if user.role == 'locksmith':
+    #         if booking.locksmith_service.locksmith.user != user:
+    #             return Response({'error': 'Permission denied'}, status=403)
+    #         booking.is_locksmith_confirmed = True
+
+    #     elif user.role == 'customer':
+    #         if booking.customer != user:
+    #             return Response({'error': 'Permission denied'}, status=403)
+    #         booking.is_customer_confirmed = True
+
+    #     else:
+    #         return Response({'error': 'Invalid user role'}, status=403)
+
+    #     booking.save()
+
+    #     # Check if both have confirmed completion
+    #     if booking.is_locksmith_confirmed and booking.is_customer_confirmed:
+    #         result = self._release_payment(booking)
+    #         if result.get("error"):
+    #             return Response(result, status=400)
+
+    #         return Response({
+    #             'status': 'Booking completed and payment released to locksmith',
+    #             **result
+    #         })
+
+    #     return Response({'status': 'Confirmation recorded. Waiting for other party to confirm.'})
+
+    
+    
+    # def _release_payment(self, booking):
+    #     """
+    #     Handles deduction and transfers payment to locksmith via Stripe
+    #     """
+    #     try:
+    #         locksmith_service = booking.locksmith_service
+    #         locksmith = locksmith_service.locksmith
+
+    #         if not booking.payment_intent_id:
+    #             return {'error': 'No PaymentIntent ID found. Ensure payment is completed.'}
+
+    #         if not locksmith.stripe_account_id:
+    #             return {'error': 'Locksmith does not have a Stripe account'}
+
+    #         payment_intent = stripe.PaymentIntent.retrieve(booking.payment_intent_id)
+    #         if payment_intent.status != "succeeded":
+    #             return {'error': f'Invalid PaymentIntent status: {payment_intent.status}'}
+
+    #         # Get admin settings
+    #         admin_settings = AdminSettings.objects.first()
+    #         commission_amount = admin_settings.commission_amount or Decimal("0.00")
+    #         percentage = admin_settings.percentage or Decimal("0.00")
+
+    #         # Subtotal = base + keys
+    #         base_price = locksmith_service.custom_price or Decimal("0.00")
+    #         number_of_keys = booking.number_of_keys or 0
+    #         additional_key_price = locksmith_service.additional_key_price or Decimal("0.00")
+    #         keys_total = additional_key_price * Decimal(number_of_keys)
+    #         subtotal = base_price + keys_total
+
+    #         # Calculate percentage deduction
+    #         percentage_amount = (subtotal * percentage) / Decimal("100")
+
+    #         total_price = booking.total_price or Decimal("0.00")
+    #         transfer_amount = total_price - percentage_amount - commission_amount
+
+    #         if transfer_amount <= 0:
+    #             return {'error': 'Transfer amount is zero or negative after deductions.'}
+
+    #         # Stripe transfer
+    #         stripe.Transfer.create(
+    #             amount=int(transfer_amount * 100),  # in cents
+    #             currency="aud",
+    #             destination=locksmith.stripe_account_id,
+    #             transfer_group=f"booking_{booking.id}"
+    #         )
+
+    #         # Mark booking as completed
+    #         booking.status = "Completed"
+    #         booking.payment_status = "paid"
+    #         booking.save()
+
+    #         return {
+    #             'total_price': str(total_price),
+    #             'subtotal': str(subtotal),
+    #             'percentage_amount': str(percentage_amount),
+    #             'commission_amount': str(commission_amount),
+    #             'transfer_amount': str(transfer_amount)
+    #         }
+
+    #     except stripe.error.StripeError as e:
+    #         return {'error': str(e)}
+
+
+
+
     @action(detail=True, methods=['post'])
     def process_refund(self, request, pk=None):
         """Refund customer payment."""
@@ -2045,11 +2387,12 @@ class BookingViewSet(viewsets.ModelViewSet):
         """List bookings for the authenticated user."""
         user = request.user
         if user.role == "customer":
-            bookings = Booking.objects.filter(customer=user)
+            bookings = Booking.objects.filter(customer=user,payment_status='paid')
         elif user.role == "locksmith":
             try:
                 locksmith = Locksmith.objects.get(user=user)
-                bookings = Booking.objects.filter(locksmith_service__locksmith=locksmith)
+                bookings = Booking.objects.filter(locksmith_service__locksmith=locksmith,
+                payment_status='paid')
             except Locksmith.DoesNotExist:
                 return Response({"error": "No locksmith profile found"}, status=400)
         elif user.role == "admin":
@@ -2466,8 +2809,8 @@ from rest_framework_simplejwt.tokens import RefreshToken
 logger = logging.getLogger(__name__)
 
 # Initialize Firebase Admin SDK
-cred = credentials.Certificate("/home/ubuntu/lockquick/locksmith/secrets/lockquick-6f1b8-firebase-adminsdk-fbsvc-55d681f13b.json")
-# cred = credentials.Certificate("C:/Users/Bornov Engineering/Desktop/back/locks/locksmith/secrets/lockquick-6f1b8-firebase-adminsdk-fbsvc-55d681f13b.json")
+# cred = credentials.Certificate("/home/ubuntu/lockquick/locksmith/secrets/lockquick-6f1b8-firebase-adminsdk-fbsvc-55d681f13b.json")
+cred = credentials.Certificate("C:/Users/Bornov Engineering/Desktop/back/locks/locksmith/secrets/lockquick-6f1b8-firebase-adminsdk-fbsvc-55d681f13b.json")
 if not firebase_admin._apps:
     firebase_admin.initialize_app(cred)
 
@@ -2655,11 +2998,43 @@ def get_address_suggestions(request):
 
 
 
+# @csrf_exempt
+# def stripe_webhook(request):
+#     payload = request.body
+#     print("📦 Raw Payload:", payload)  # Debug
+
+#     sig_header = request.META.get('HTTP_STRIPE_SIGNATURE')
+#     webhook_secret = settings.STRIPE_WEBHOOK_SECRET
+
+#     try:
+#         event = stripe.Webhook.construct_event(payload, sig_header, webhook_secret)
+#     except Exception as e:
+#         print("❌ Webhook error:", str(e))
+#         return HttpResponse(status=400)
+
+#     print("✅ Event type:", event['type'])
+
+#     if event['type'] == 'checkout.session.completed':
+#         session = event['data']['object']
+#         session_id = session.get('id')
+#         print("🔎 Session ID:", session_id)
+
+#         try:
+#             booking = Booking.objects.get(stripe_session_id=session_id)
+#             booking.payment_status = 'paid'
+#             booking.payment_intent_id = session.get('payment_intent')
+#             booking.save()
+#             print(f"✅ Booking {booking.id} marked as paid via webhook.")
+#         except Booking.DoesNotExist:
+#             print(f"❌ Booking not found for session ID: {session_id}")
+#             return JsonResponse({"error": "Booking not found"}, status=404)
+
+#     return HttpResponse(status=200)
+
+
 @csrf_exempt
 def stripe_webhook(request):
     payload = request.body
-    print("📦 Raw Payload:", payload)  # Debug
-
     sig_header = request.META.get('HTTP_STRIPE_SIGNATURE')
     webhook_secret = settings.STRIPE_WEBHOOK_SECRET
 
@@ -2678,10 +3053,40 @@ def stripe_webhook(request):
 
         try:
             booking = Booking.objects.get(stripe_session_id=session_id)
-            booking.payment_status = 'paid'
-            booking.payment_intent_id = session.get('payment_intent')
-            booking.save()
-            print(f"✅ Booking {booking.id} marked as paid via webhook.")
+
+            if session.get('payment_status') == 'paid':
+                booking.payment_intent_id = session.get('payment_intent')
+                booking.payment_status = 'paid'
+                booking.status = 'Scheduled'
+                booking.save()
+
+                customer = booking.customer
+                locksmith = booking.locksmith_service.locksmith
+
+                # Send SMS to customer
+                customer_message = (
+                    f"Hello {customer.get_full_name()},\n"
+                    f"Your payment for the booking (ID: {booking.id}) is successful.\n"
+                    f"Please wait for the locksmith to approve your request.\n"
+                    f"You will be notified once it's approved or denied."
+                )
+                send_sms(booking.customer_contact_number or customer.phone_number, customer_message)
+
+                # Notify locksmith
+                locksmith_message = (
+                    f"Hello {locksmith.user.get_full_name()},\n"
+                    f"You have a new booking (ID: {booking.id}) from customer {customer.get_full_name()}.\n"
+                    f"Service: {booking.locksmith_service.admin_service.name}\n"
+                    f"Customer Address: {booking.customer_address or 'N/A'}\n"
+                    f"Customer Phone: {booking.customer_contact_number or customer.phone_number or 'N/A'}\n"
+                    f"Scheduled Date: {booking.scheduled_date.strftime('%Y-%m-%d %H:%M')}\n"
+                    f"Emergency Service: {'Yes' if booking.emergency else 'No'}\n"
+                    f"Please approve or deny this booking."
+                )
+                send_sms(locksmith.contact_number, locksmith_message)
+
+                print(f"✅ Booking {booking.id} updated and SMS sent.")
+
         except Booking.DoesNotExist:
             print(f"❌ Booking not found for session ID: {session_id}")
             return JsonResponse({"error": "Booking not found"}, status=404)
