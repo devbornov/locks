@@ -2809,8 +2809,8 @@ from rest_framework_simplejwt.tokens import RefreshToken
 logger = logging.getLogger(__name__)
 
 # Initialize Firebase Admin SDK
-# cred = credentials.Certificate("/home/ubuntu/lockquick/locksmith/secrets/lockquick-6f1b8-firebase-adminsdk-fbsvc-55d681f13b.json")
-cred = credentials.Certificate("C:/Users/Bornov Engineering/Desktop/back/locks/locksmith/secrets/lockquick-6f1b8-firebase-adminsdk-fbsvc-55d681f13b.json")
+cred = credentials.Certificate("/home/ubuntu/lockquick/locksmith/secrets/lockquick-6f1b8-firebase-adminsdk-fbsvc-55d681f13b.json")
+# cred = credentials.Certificate("C:/Users/Bornov Engineering/Desktop/back/locks/locksmith/secrets/lockquick-6f1b8-firebase-adminsdk-fbsvc-55d681f13b.json")
 if not firebase_admin._apps:
     firebase_admin.initialize_app(cred)
 
