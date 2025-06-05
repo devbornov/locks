@@ -2008,7 +2008,9 @@ class BookingViewSet(viewsets.ModelViewSet):
         # Notify locksmith again (optional)
         locksmith_message = (
             f"Hello {locksmith.user.get_full_name()},\n"
-            f"You have a new booking (ID: {booking.id}) from customer {customer.get_full_name()}.\n"
+            f"Your approved service details are here:\n"
+            f"Booking ID: {booking.id}\n"
+            f"Customer: {customer.get_full_name()}\n"
             f"Service: {booking.locksmith_service.admin_service.name}\n"
             f"Customer Address: {booking.customer_address or 'N/A'}\n"
             f"Customer Phone: {booking.customer_contact_number or customer.phone_number or 'N/A'}\n"
@@ -3077,8 +3079,8 @@ def stripe_webhook(request):
                     f"Hello {locksmith.user.get_full_name()},\n"
                     f"You have a new booking (ID: {booking.id}) from customer {customer.get_full_name()}.\n"
                     f"Service: {booking.locksmith_service.admin_service.name}\n"
-                    f"Customer Address: {booking.customer_address or 'N/A'}\n"
-                    f"Customer Phone: {booking.customer_contact_number or customer.phone_number or 'N/A'}\n"
+                    # f"Customer Address: {booking.customer_address or 'N/A'}\n"
+                    # f"Customer Phone: {booking.customer_contact_number or customer.phone_number or 'N/A'}\n"
                     f"Scheduled Date: {booking.scheduled_date.strftime('%Y-%m-%d %H:%M')}\n"
                     f"Emergency Service: {'Yes' if booking.emergency else 'No'}\n"
                     f"Please approve or deny this booking."
