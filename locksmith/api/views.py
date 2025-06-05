@@ -337,13 +337,16 @@ class LocksmithProfileView(APIView):
         """
         user = request.user
 
-        # Ensure the locksmith profile exists
         try:
             locksmith = user.locksmith
         except Locksmith.DoesNotExist:
             return Response({"error": "Locksmith profile not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        serializer = LocksmithSerializer(locksmith, data=request.data, partial=True)
+        # Convert request.data to mutable and remove gst_registered
+        data = request.data.copy()
+        data.pop('gst_registered', None)  # Prevent update of this field
+
+        serializer = LocksmithSerializer(locksmith, data=data, partial=True)
         if serializer.is_valid():
             serializer.save()
             return Response({"message": "Profile updated successfully", "data": serializer.data}, status=status.HTTP_200_OK)
