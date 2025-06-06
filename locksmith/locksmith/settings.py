@@ -240,14 +240,15 @@ CORS_ALLOW_ALL_ORIGINS = True
 
 
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000", 
-    "http://localhost:3001"
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "https://lockquick.com.au",
 ]
-
 
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:3000",
-    "http://localhost:3001"
+    "http://localhost:3001",
+    "https://lockquick.com.au",
 ]
 
 # CORS_ALLOWED_ORIGIN_REGEXES = [
