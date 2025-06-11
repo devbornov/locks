@@ -562,7 +562,11 @@ class AdminLocksmithServiceViewSet(viewsets.ModelViewSet):
     
     @action(detail=False, methods=['get'], permission_classes=[AllowAny])
     def services_to_customer(self, request):
-        """Get all approved locksmith services, optionally filtered by service type and sorted by distance."""
+        """
+        Get all approved locksmith services,
+        optionally filtered by service type and sorted by distance.
+        Adds service_area, gst_registered, is_available to the response.
+        """
 
         latitude = request.query_params.get('latitude')
         longitude = request.query_params.get('longitude')
@@ -591,18 +595,21 @@ class AdminLocksmithServiceViewSet(viewsets.ModelViewSet):
 
             # Serialize service data
             service_data = LocksmithServiceSerializer(service).data
-            # service_data.pop("custom_price", None)  # Remove custom_price from response
 
             # Ensure car_key_details appears only once
             car_key_details = service_data.pop("car_key_details", None)
 
+            # Build response item
             locksmith_services_with_distance.append({
                 "locksmith": locksmith.user.username,
                 "latitude": locksmith.latitude,
                 "longitude": locksmith.longitude,
                 "distance_km": round(distance_km, 2),
+                "service_area": locksmith.service_area,             # ✅ added
+                "gst_registered": locksmith.gst_registered,         # ✅ added
+                "is_available": locksmith.is_available,             # ✅ added
                 "service": service_data,
-                "car_key_details": car_key_details  # Only include car_key_details once
+                "car_key_details": car_key_details
             })
 
         # Sort by nearest distance
@@ -1186,6 +1193,19 @@ class LocksmithViewSet(viewsets.ModelViewSet):
         })
         
         
+    @action(detail=False, methods=['get'], permission_classes=[IsLocksmith])
+    def generate_stripe_login_link(self, request):
+        locksmith = request.user.locksmith
+
+        if not locksmith.stripe_account_id:
+            return Response({"error": "You do not have a Stripe account."}, status=400)
+
+        # Generate login link
+        login_link = stripe.Account.create_login_link(locksmith.stripe_account_id)
+
+        return Response({"login_url": login_link.url})
+        
+        
         
         
     @action(detail=False, methods=['post'], permission_classes=[IsLocksmith])
@@ -1668,13 +1688,19 @@ class BookingViewSet(viewsets.ModelViewSet):
 
         commission_amount = admin_settings.commission_amount or Decimal("0.00")
         percentage = admin_settings.percentage or Decimal("0.00")
+        gst_percentage = admin_settings.gst_percentage or Decimal("0.00")
 
         base_price = locksmith_service.custom_price or Decimal("0.00")
         keys_total = number_of_keys * additional_key_price
 
         subtotal = base_price + keys_total
+
         percentage_amount = (subtotal * percentage) / Decimal("100")
-        total_price = subtotal + percentage_amount + commission_amount
+        platform_income = commission_amount + percentage_amount
+
+        gst_amount = (platform_income * gst_percentage) / Decimal("100")
+
+        total_price = subtotal + platform_income + gst_amount
 
         # Get emergency value from request (default to False if not provided)
         emergency = data.get('emergency', False)
@@ -1688,6 +1714,7 @@ class BookingViewSet(viewsets.ModelViewSet):
             total_price=total_price,
             emergency=emergency
         )
+
         
     
     # @action(detail=True, methods=['post'])
@@ -1956,8 +1983,8 @@ class BookingViewSet(viewsets.ModelViewSet):
                     f"Hello {locksmith.user.get_full_name()},\n"
                     f"You have a new booking (ID: {booking.id}) from customer {customer.get_full_name()}.\n"
                     f"Service: {booking.locksmith_service.admin_service.name}\n"
-                    f"Customer Address: {booking.customer_address or 'N/A'}\n"
-                    f"Customer Phone: {booking.customer_contact_number or customer.phone_number or 'N/A'}\n"
+                    # f"Customer Address: {booking.customer_address or 'N/A'}\n"
+                    # f"Customer Phone: {booking.customer_contact_number or customer.phone_number or 'N/A'}\n"
                     f"Scheduled Date: {booking.scheduled_date.strftime('%Y-%m-%d %H:%M')}\n"
                     f"Emergency Service: {'Yes' if booking.emergency else 'No'}\n"
                     f"Please approve or deny this booking."
@@ -2147,7 +2174,7 @@ class BookingViewSet(viewsets.ModelViewSet):
     #         return Response({'error': str(e)}, status=400)
     
     
-    @action(detail=True, methods=['post'],permission_classes=[IsLocksmith])
+    @action(detail=True, methods=['post'], permission_classes=[IsLocksmith])
     def complete(self, request, pk=None):
         """
         Locksmith marks booking as completed and receives payment
@@ -2188,8 +2215,9 @@ class BookingViewSet(viewsets.ModelViewSet):
                 admin_settings = AdminSettings.objects.first()
                 commission_amount = admin_settings.commission_amount or Decimal("0.00")
                 percentage = admin_settings.percentage or Decimal("0.00")
+                gst_percentage = admin_settings.gst_percentage or Decimal("0.00")
 
-                # Calculate subtotal: base price + additional keys cost
+                # Calculate base price + additional keys
                 base_price = locksmith_service.custom_price or Decimal("0.00")
                 number_of_keys = booking.number_of_keys or 0
                 additional_key_price = locksmith_service.additional_key_price or Decimal("0.00")
@@ -2197,12 +2225,20 @@ class BookingViewSet(viewsets.ModelViewSet):
 
                 subtotal = base_price + keys_total
 
-                # Calculate percentage amount (commission)
+                # Platform % fee
                 percentage_amount = (subtotal * percentage) / Decimal("100")
 
-                # Calculate transfer amount = total_price - percentage_amount - commission_amount
+                # Platform income = fixed + %
+                platform_income = commission_amount + percentage_amount
+
+                # GST on platform income
+                gst_amount = (platform_income * gst_percentage) / Decimal("100")
+
+                # Total price (already stored in booking)
                 total_price = booking.total_price or Decimal("0.00")
-                transfer_amount = total_price - percentage_amount - commission_amount
+
+                # Now: Transfer only base_price + keys_total to locksmith (not platform fees, not GST)
+                transfer_amount = base_price + keys_total
 
                 if transfer_amount <= 0:
                     return Response({'error': 'Transfer amount is zero or negative after deductions.'}, status=400)
@@ -2210,7 +2246,7 @@ class BookingViewSet(viewsets.ModelViewSet):
                 # Convert to cents for Stripe
                 transfer_amount_cents = int(transfer_amount * Decimal('100'))
 
-                # Transfer payment to locksmith Stripe account
+                # Perform Stripe Transfer
                 stripe.Transfer.create(
                     amount=transfer_amount_cents,
                     currency="aud",
@@ -2223,13 +2259,17 @@ class BookingViewSet(viewsets.ModelViewSet):
                 booking.payment_status = "paid"
                 booking.save()
 
+                # Return response with breakdown
                 return Response({
                     'status': 'Booking completed and payment transferred to locksmith',
                     'total_price': str(total_price),
-                    'subtotal': str(subtotal),
-                    'percentage_amount': str(percentage_amount),
-                    'commission_amount': str(commission_amount),
-                    'transfer_amount': str(transfer_amount)
+                    'locksmith_transfer_amount': str(transfer_amount),
+                    'locksmith_charges': str(base_price),
+                    'additional_key_charges': str(keys_total),
+                    'platform_charges': str(commission_amount),
+                    'service_charges': str(percentage_amount),
+                    'gst': str(gst_amount),
+                    'platform_income': str(platform_income),
                 })
 
             else:
@@ -2237,6 +2277,7 @@ class BookingViewSet(viewsets.ModelViewSet):
 
         except stripe.error.StripeError as e:
             return Response({'error': str(e)}, status=400)
+
 
 
 

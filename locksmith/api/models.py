@@ -37,14 +37,16 @@ class User(AbstractUser):
 class AdminSettings(models.Model):
     commission_amount = models.DecimalField(max_digits=10, decimal_places=2, default=40.00)  # Fixed commission amount
     percentage = models.DecimalField(max_digits=5, decimal_places=2, default=10.00)  # Percentage value
+    gst_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=10.00)  # GST percentage
     platform_status = models.CharField(max_length=20, choices=[('active', 'Active'), ('inactive', 'Inactive')], default='active')
 
     def __str__(self):
-        return f"Commission: {self.commission_amount} | Percentage: {self.percentage}% | Status: {self.platform_status}"
+        return f"Commission: {self.commission_amount} | Percentage: {self.percentage}% | GST: {self.gst_percentage}% | Status: {self.platform_status}"
 
     class Meta:
         verbose_name = 'Admin Settings'
         verbose_name_plural = 'Admin Settings'
+
 
 
 
