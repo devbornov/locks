@@ -258,18 +258,18 @@ class ServiceBidSerializer(serializers.ModelSerializer):
         return value
 
 class AdminSettingsSerializer(serializers.ModelSerializer):
-    commission_amount = serializers.DecimalField(max_digits=10, decimal_places=2)
-    percentage = serializers.DecimalField(max_digits=5, decimal_places=2)
-
     class Meta:
         model = AdminSettings
-        fields = ['commission_amount', 'percentage', 'platform_status']
+        fields = ['commission_amount', 'percentage', 'gst_percentage', 'platform_status']
 
-    def update_commission(self, instance, validated_data):
-        # Logic to update platform settings such as commission percentage
-        instance.commission_percentage = validated_data.get('commission_percentage', instance.commission_percentage)
+    def update(self, instance, validated_data):
+        instance.commission_amount = validated_data.get('commission_amount', instance.commission_amount)
+        instance.percentage = validated_data.get('percentage', instance.percentage)
+        instance.gst_percentage = validated_data.get('gst_percentage', instance.gst_percentage)
+        instance.platform_status = validated_data.get('platform_status', instance.platform_status)
         instance.save()
         return instance
+
 
 class PlatformStatisticsSerializer(serializers.ModelSerializer):
     total_transactions = serializers.IntegerField()

@@ -858,7 +858,7 @@ class ServiceRequestViewSet(viewsets.ModelViewSet):
         return Response({'status': 'request rejected'})
     
 class AdminSettingsViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAdmin]
     queryset = AdminSettings.objects.all()
     serializer_class = AdminSettingsSerializer    
     
