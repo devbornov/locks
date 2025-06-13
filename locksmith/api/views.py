@@ -2393,7 +2393,7 @@ class BookingViewSet(viewsets.ModelViewSet):
 
 
     
-    @action(detail=False, methods=["get"], permission_classes=[AllowAny])
+    @action(detail=False, methods=["get"], permission_classes=[IsCustomer])
     def by_session(self, request):
         session_id = request.query_params.get("session_id")
         if not session_id:

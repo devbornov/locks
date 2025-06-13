@@ -439,4 +439,81 @@ class BookingViewSet(viewsets.ModelViewSet):
 
         serializer = self.get_serializer(bookings, many=True)
         return Response(serializer.data)
+    
 
+    @action(detail=False, methods=["get"], permission_classes=[IsCustomer])
+    def by_session(self, request):
+        session_id = request.query_params.get("session_id")
+        if not session_id:
+            return Response({"error": "Missing session_id"}, status=400)
+
+        try:
+            booking = Booking.objects.get(stripe_session_id=session_id)
+        except Booking.DoesNotExist:
+            return Response({"error": "Booking not found"}, status=404)
+
+        serializer = self.get_serializer(booking)
+        return Response(serializer.data)
+    
+    
+    
+@csrf_exempt
+def stripe_webhook(request):
+    payload = request.body
+    sig_header = request.META.get('HTTP_STRIPE_SIGNATURE')
+    webhook_secret = settings.STRIPE_WEBHOOK_SECRET
+
+    try:
+        event = stripe.Webhook.construct_event(payload, sig_header, webhook_secret)
+    except Exception as e:
+        print("❌ Webhook error:", str(e))
+        return HttpResponse(status=400)
+
+    print("✅ Event type:", event['type'])
+
+    if event['type'] == 'checkout.session.completed':
+        session = event['data']['object']
+        session_id = session.get('id')
+        print("🔎 Session ID:", session_id)
+
+        try:
+            booking = Booking.objects.get(stripe_session_id=session_id)
+
+            if session.get('payment_status') == 'paid':
+                booking.payment_intent_id = session.get('payment_intent')
+                booking.payment_status = 'paid'
+                booking.status = 'Scheduled'
+                booking.save()
+
+                customer = booking.customer
+                locksmith = booking.locksmith_service.locksmith
+
+                # Send SMS to customer
+                customer_message = (
+                    f"Hello {customer.get_full_name()},\n"
+                    f"Your payment for the booking (ID: {booking.id}) is successful.\n"
+                    f"Please wait for the locksmith to approve your request.\n"
+                    f"You will be notified once it's approved or denied."
+                )
+                send_sms(booking.customer_contact_number or customer.phone_number, customer_message)
+
+                # Notify locksmith
+                locksmith_message = (
+                    f"Hello {locksmith.user.get_full_name()},\n"
+                    f"You have a new booking (ID: {booking.id}) from customer {customer.get_full_name()}.\n"
+                    f"Service: {booking.locksmith_service.admin_service.name}\n"
+                    # f"Customer Address: {booking.customer_address or 'N/A'}\n"
+                    # f"Customer Phone: {booking.customer_contact_number or customer.phone_number or 'N/A'}\n"
+                    f"Scheduled Date: {booking.scheduled_date.strftime('%Y-%m-%d %H:%M')}\n"
+                    f"Emergency Service: {'Yes' if booking.emergency else 'No'}\n"
+                    f"Please approve or deny this booking."
+                )
+                send_sms(locksmith.contact_number, locksmith_message)
+
+                print(f"✅ Booking {booking.id} updated and SMS sent.")
+
+        except Booking.DoesNotExist:
+            print(f"❌ Booking not found for session ID: {session_id}")
+            return JsonResponse({"error": "Booking not found"}, status=404)
+
+    return HttpResponse(status=200)
