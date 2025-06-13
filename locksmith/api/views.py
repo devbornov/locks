@@ -1777,6 +1777,7 @@ class BookingViewSet(viewsets.ModelViewSet):
                 }],
                 mode='payment',
                 success_url="https://lockquick.com.au/payment-success?session_id={CHECKOUT_SESSION_ID}",
+                # success_url="http://localhost:3000/payment-success?session_id={CHECKOUT_SESSION_ID}",
                 cancel_url="https://lockquick.com.au/payment-cancel",
             )
 
@@ -2391,6 +2392,23 @@ class BookingViewSet(viewsets.ModelViewSet):
     #         return {'error': str(e)}
 
 
+    
+    @action(detail=False, methods=["get"], permission_classes=[AllowAny])
+    def by_session(self, request):
+        session_id = request.query_params.get("session_id")
+        if not session_id:
+            return Response({"error": "Missing session_id"}, status=400)
+
+        try:
+            booking = Booking.objects.get(stripe_session_id=session_id)
+        except Booking.DoesNotExist:
+            return Response({"error": "Booking not found"}, status=404)
+
+        serializer = self.get_serializer(booking)
+        return Response(serializer.data)
+    
+    
+    
 
 
     @action(detail=True, methods=['post'])
@@ -3138,3 +3156,19 @@ def stripe_webhook(request):
             return JsonResponse({"error": "Booking not found"}, status=404)
 
     return HttpResponse(status=200)
+
+
+
+
+@api_view(['GET'])
+def stripe_session_details(request):
+    session_id = request.GET.get('session_id')
+    try:
+        session = stripe.checkout.Session.retrieve(session_id)
+        return Response({
+            "id": session.id,
+            "payment_status": session.payment_status,
+            "amount_total": session.amount_total
+        })
+    except stripe.error.StripeError as e:
+        return Response({"error": str(e)}, status=400)

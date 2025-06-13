@@ -25,7 +25,7 @@ from dj_rest_auth.registration.views import SocialLoginView
 from allauth.socialaccount.providers.google.views import GoogleOAuth2Adapter
 from allauth.socialaccount.providers.facebook.views import FacebookOAuth2Adapter
 from api.views import GoogleLoginAPI
-from api.views import GoogleLoginWithRole ,google_login , stripe_webhook
+from api.views import GoogleLoginWithRole ,google_login , stripe_webhook , stripe_session_details
 
 
 
@@ -50,6 +50,7 @@ urlpatterns = [
     path("logout/", LogoutView.as_view(), name="logout"),
     path("get-mcc/", get_mcc_code, name="get_mcc"),
     path('webhooks/stripe/', stripe_webhook, name='stripe-webhook'),
+    path('stripe/session-details', stripe_session_details),
     # path("auth/social/", include("allauth.socialaccount.urls")),
     # path("update-mcc/", update_mcc, name="update_mcc"),
     
