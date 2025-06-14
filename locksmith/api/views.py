@@ -1776,8 +1776,8 @@ class BookingViewSet(viewsets.ModelViewSet):
                     'quantity': 1,
                 }],
                 mode='payment',
-                success_url="https://lockquick.com.au/payment-success?session_id={CHECKOUT_SESSION_ID}",
-                # success_url="http://localhost:3000/payment-success?session_id={CHECKOUT_SESSION_ID}",
+                # success_url="https://lockquick.com.au/payment-success?session_id={CHECKOUT_SESSION_ID}",
+                success_url="http://localhost:3000/payment-success?session_id={CHECKOUT_SESSION_ID}",
                 cancel_url="https://lockquick.com.au/payment-cancel",
             )
 
@@ -1971,27 +1971,27 @@ class BookingViewSet(viewsets.ModelViewSet):
                 customer = booking.customer
 
                 # ✅ Send SMS to customer: payment success, wait for approval
-                customer_message = (
-                    f"Hello {customer.get_full_name()},\n"
-                    f"Your payment for the booking (ID: {booking.id}) is successful.\n"
-                    f"Please wait for the locksmith to approve your request.\n"
-                    f"You will be notified once it's approved or denied."
-                )
-                send_sms(booking.customer_contact_number or customer.phone_number, customer_message)
+                # customer_message = (
+                #     f"Hello {customer.get_full_name()},\n"
+                #     f"Your payment for the booking (ID: {booking.id}) is successful.\n"
+                #     f"Please wait for the locksmith to approve your request.\n"
+                #     f"You will be notified once it's approved or denied."
+                # )
+                # send_sms(booking.customer_contact_number or customer.phone_number, customer_message)
 
                 # ✅ Notify locksmith about the new booking
-                locksmith_message = (
-                    f"Hello {locksmith.user.get_full_name()},\n"
-                    f"You have a new booking (ID: {booking.id}) from customer {customer.get_full_name()}.\n"
-                    f"Service: {booking.locksmith_service.admin_service.name}\n"
-                    # f"Customer Address: {booking.customer_address or 'N/A'}\n"
-                    # f"Customer Phone: {booking.customer_contact_number or customer.phone_number or 'N/A'}\n"
-                    f"Scheduled Date: {booking.scheduled_date.strftime('%Y-%m-%d %H:%M')}\n"
-                    f"Emergency Service: {'Yes' if booking.emergency else 'No'}\n"
-                    f"Please approve or deny this booking."
-                    f"Thank you."
-                )
-                send_sms(locksmith.contact_number, locksmith_message)
+                # locksmith_message = (
+                #     f"Hello {locksmith.user.get_full_name()},\n"
+                #     f"You have a new booking (ID: {booking.id}) from customer {customer.get_full_name()}.\n"
+                #     f"Service: {booking.locksmith_service.admin_service.name}\n"
+                #     # f"Customer Address: {booking.customer_address or 'N/A'}\n"
+                #     # f"Customer Phone: {booking.customer_contact_number or customer.phone_number or 'N/A'}\n"
+                #     f"Scheduled Date: {booking.scheduled_date.strftime('%Y-%m-%d %H:%M')}\n"
+                #     f"Emergency Service: {'Yes' if booking.emergency else 'No'}\n"
+                #     f"Please approve or deny this booking."
+                #     f"Thank you."
+                # )
+                # send_sms(locksmith.contact_number, locksmith_message)
 
                 return Response({
                     "status": "Payment confirmed and booking scheduled.",
