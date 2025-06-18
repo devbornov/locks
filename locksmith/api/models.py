@@ -399,6 +399,33 @@ class Booking(models.Model):
     
     is_customer_confirmed = models.BooleanField(default=False)
     is_locksmith_confirmed = models.BooleanField(default=False)
+    
+    # Stripe charge ID used in transfer
+    charge_id = models.CharField(max_length=255, blank=True, null=True)
+
+    # Transfer status tracking
+    TRANSFER_STATUS_CHOICES = [
+        ("not_started", "Not Started"),
+        ("pending", "Pending"),
+        ("completed", "Completed"),
+    ]
+
+    transfer_status = models.CharField(
+        max_length=20,
+        choices=TRANSFER_STATUS_CHOICES,
+        default="not_started",
+        help_text="Tracks the status of transfer to the locksmith"
+    )
+
+    # Amount transferred to locksmith
+    locksmith_transfer_amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        blank=True,
+        null=True,
+        help_text="Actual amount transferred to locksmith"
+    )
+
 
     def check_completion(self):
         if self.is_customer_confirmed and self.is_locksmith_confirmed:

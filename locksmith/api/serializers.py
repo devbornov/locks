@@ -443,24 +443,62 @@ class CustomerServiceRequestSerializer(serializers.ModelSerializer):
 
 #     def get_locksmith_service_type(self, obj):
 #         return obj.locksmith_service.service_type if obj.locksmith_service else None
+
+
+# class BookingSerializer(serializers.ModelSerializer):
+#     customer = UserSerializer(read_only=True)
+#     locksmith_service_type = serializers.SerializerMethodField()
+#     payment_intent_id = serializers.CharField(read_only=True)
+
+#     # New fields
+#     customer_contact_number = serializers.CharField(max_length=20, required=False, allow_blank=True)
+#     customer_address = serializers.CharField(max_length=255, required=False, allow_blank=True)
+#     number_of_keys = serializers.IntegerField(required=False, allow_null=True)
+#     emergency = serializers.BooleanField(required=False)
+
+#     class Meta:
+#         model = Booking
+#         fields = '__all__'
+#         read_only_fields = ['customer', 'status', 'locksmith_service_type', 'payment_intent_id']
+
+#     def get_locksmith_service_type(self, obj):
+#         return obj.locksmith_service.service_type if obj.locksmith_service else None
+
+
+
 class BookingSerializer(serializers.ModelSerializer):
     customer = UserSerializer(read_only=True)
     locksmith_service_type = serializers.SerializerMethodField()
     payment_intent_id = serializers.CharField(read_only=True)
 
-    # New fields
+    # New fields (already present in your model)
     customer_contact_number = serializers.CharField(max_length=20, required=False, allow_blank=True)
     customer_address = serializers.CharField(max_length=255, required=False, allow_blank=True)
     number_of_keys = serializers.IntegerField(required=False, allow_null=True)
     emergency = serializers.BooleanField(required=False)
 
+    # Include new model fields
+    charge_id = serializers.CharField(read_only=True)
+    transfer_status = serializers.CharField(read_only=True)
+    locksmith_transfer_amount = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+
     class Meta:
         model = Booking
         fields = '__all__'
-        read_only_fields = ['customer', 'status', 'locksmith_service_type', 'payment_intent_id']
+        read_only_fields = [
+            'customer',
+            'status',
+            'locksmith_service_type',
+            'payment_intent_id',
+            'charge_id',
+            'transfer_status',
+            'locksmith_transfer_amount'
+        ]
 
     def get_locksmith_service_type(self, obj):
         return obj.locksmith_service.service_type if obj.locksmith_service else None
+
+
 
 
 
