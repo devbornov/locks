@@ -538,3 +538,20 @@ class CustomSocialLoginSerializer(SocialLoginSerializer):
 
         return user
     
+
+
+
+
+# phase 2
+    
+    
+# serializers.py
+from rest_framework import serializers
+from .models import WebsiteContent
+
+class WebsiteContentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = WebsiteContent
+        fields = '__all__'
+
+    

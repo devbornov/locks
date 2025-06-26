@@ -99,6 +99,7 @@ class Locksmith(models.Model):
     photo = models.ImageField(upload_to='locksmiths/photos/', blank=True, null=True)
     is_verified = models.BooleanField(default=False)
     is_available = models.BooleanField(default=True, blank=True, null=True)
+    is_discounted = models.BooleanField(default=False) 
 
     # Updated GST field
     gst_registered = models.CharField(
@@ -458,3 +459,16 @@ class ContactMessage(models.Model):
     
     
     
+
+# phsae 2
+
+class WebsiteContent(models.Model):
+    section = models.CharField(max_length=100, unique=True)
+    content = models.JSONField()  # stores text, buttons, etc.
+    image = models.ImageField(upload_to='content_images/', null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.section
+
