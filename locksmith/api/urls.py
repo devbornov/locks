@@ -6,7 +6,7 @@ from .views import (
     ServiceRequestViewSet, ServiceBidViewSet, 
     AdminSettingsViewSet,AllLocksmiths,CustomersViewSet,AdmincomissionViewSet,CustomerServiceRequestViewSet,Approvalverification, BookingViewSet , 
     AdminLocksmithServiceViewSet,AdminLocksmithServiceApprovalViewSet , CustomerProfileViewSet , ContactMessageViewSet , ForgotPasswordViewSet
-    , CusCarKeyDetailsViewSet , get_address_suggestions ,WebsiteContentViewSet
+    , CusCarKeyDetailsViewSet , get_address_suggestions ,WebsiteContentViewSet , SuggestedServiceViewSet
 )
 # from .views import stripe_webhook
 
@@ -43,6 +43,7 @@ router.register(r'car-key-details', CusCarKeyDetailsViewSet, basename='car-key-d
 # phase 2
 
 router.register(r'content', WebsiteContentViewSet, basename='content')
+router.register(r'suggested-services', SuggestedServiceViewSet)
 
 
 # URL patterns

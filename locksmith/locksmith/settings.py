@@ -146,6 +146,9 @@ WSGI_APPLICATION = 'locksmith.wsgi.application'
 STATIC_URL = '/static/'
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 
+DATA_UPLOAD_MAX_MEMORY_SIZE = 10485760  # 10 MB
+FILE_UPLOAD_MAX_MEMORY_SIZE = 10485760
+
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
@@ -360,3 +363,43 @@ SOCIAL_AUTH_GOOGLE_CALLBACK_URL = "https://lockquick.com.au/accounts/google/logi
 SOCIALACCOUNT_ADAPTER = 'api.adapters.MySocialAccountAdapter'
 
 GOOGLE_MAPS_API_KEY = 'AIzaSyBEHlAVb2PxzZs6UAPRCqkG2GOfVkApnj8'
+
+
+
+
+
+
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '[{levelname}] {asctime} {name} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+        'file': {
+            'level': 'DEBUG',
+            'class': 'logging.FileHandler',
+            'filename': 'email_debug.log',
+            'formatter': 'verbose',
+        },
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console', 'file'],
+            'level': 'INFO',
+        },
+        'locksmith.api': {  # replace with your actual app path
+            'handlers': ['console', 'file'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+    },
+}

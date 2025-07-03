@@ -6,31 +6,68 @@ import pyotp
 from django.db import models
 import pyotp
 
+# class User(AbstractUser):
+#     ROLE_CHOICES = [
+#         ('admin', 'Admin'),
+#         ('locksmith', 'Locksmith'),
+#         ('customer', 'Customer'),
+#     ]
+#     role = models.CharField(max_length=50, choices=ROLE_CHOICES, default='customer')
+#     totp_secret = models.CharField(max_length=32, blank=True, null=True)  # Google Authenticator Secret
+#     otp_code = models.CharField(max_length=6, blank=True, null=True)  # Temporary OTP for Password Reset
+
+#     def enable_totp(self):
+#         """Generate a new TOTP secret key and save it in the database."""
+#         self.totp_secret = pyotp.random_base32()
+#         self.save()
+#         return self.totp_secret  # Return the secret for generating a QR code
+
+#     def verify_totp(self, otp_code, valid_window=1):
+#         """Verify the OTP entered by the user using Google Authenticator."""
+#         if not self.totp_secret:
+#             return False  # TOTP not enabled
+#         totp = pyotp.TOTP(self.totp_secret)
+#         return totp.verify(otp_code, valid_window=valid_window)  # Accepts ±1 time step
+
+#     def __str__(self):
+#         return f"{self.username} - {self.role}"
+
+
+
+
+def validate_latitude(value):
+    if not (-90 <= value <= 90):
+        raise ValidationError("Invalid latitude")
+
+def validate_longitude(value):
+    if not (-180 <= value <= 180):
+        raise ValidationError("Invalid longitude")
+
 class User(AbstractUser):
     ROLE_CHOICES = [
         ('admin', 'Admin'),
         ('locksmith', 'Locksmith'),
         ('customer', 'Customer'),
     ]
+
     role = models.CharField(max_length=50, choices=ROLE_CHOICES, default='customer')
-    totp_secret = models.CharField(max_length=32, blank=True, null=True)  # Google Authenticator Secret
-    otp_code = models.CharField(max_length=6, blank=True, null=True)  # Temporary OTP for Password Reset
+    totp_secret = models.CharField(max_length=32, blank=True, null=True)
+    otp_code = models.CharField(max_length=6, blank=True, null=True)
+    otp_expiry = models.DateTimeField(blank=True, null=True)
 
     def enable_totp(self):
-        """Generate a new TOTP secret key and save it in the database."""
         self.totp_secret = pyotp.random_base32()
         self.save()
-        return self.totp_secret  # Return the secret for generating a QR code
+        return self.totp_secret
 
     def verify_totp(self, otp_code, valid_window=1):
-        """Verify the OTP entered by the user using Google Authenticator."""
         if not self.totp_secret:
-            return False  # TOTP not enabled
+            return False
         totp = pyotp.TOTP(self.totp_secret)
-        return totp.verify(otp_code, valid_window=valid_window)  # Accepts ±1 time step
+        return totp.verify(otp_code, valid_window=valid_window)
 
-    def __str__(self):
-        return f"{self.username} - {self.role}"
+
+
 
 
 # Admin Settings Model (For Commission & Platform Settings)  
@@ -472,3 +509,27 @@ class WebsiteContent(models.Model):
     def __str__(self):
         return self.section
 
+
+
+class SuggestedService(models.Model):
+    SERVICE_TYPES = AdminService.SERVICE_TYPES
+
+    name = models.CharField(max_length=255)
+    service_type = models.CharField(max_length=20, choices=SERVICE_TYPES)
+    supported_vehicles = models.TextField(blank=True, null=True)
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    additional_key_price = models.DecimalField(
+        max_digits=10, decimal_places=2,
+        default=0.00,
+        help_text="Price per extra key",
+        null=True,
+        blank=True
+    )
+    car_key_details = models.JSONField(blank=True, null=True)
+    status = models.CharField(max_length=20, choices=[
+        ('pending', 'Pending'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected')
+    ], default='pending')
+    suggested_by = models.ForeignKey(User, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)

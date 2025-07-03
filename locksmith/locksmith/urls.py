@@ -25,7 +25,7 @@ from dj_rest_auth.registration.views import SocialLoginView
 from allauth.socialaccount.providers.google.views import GoogleOAuth2Adapter
 from allauth.socialaccount.providers.facebook.views import FacebookOAuth2Adapter
 from api.views import GoogleLoginAPI
-from api.views import GoogleLoginWithRole ,google_login , stripe_webhook , stripe_session_details
+from api.views import GoogleLoginWithRole ,google_login , stripe_webhook , stripe_session_details , RegisterView, LoginStepOneView, LoginStepTwoView , VerifyOTPView , ResendOTPView
 
 
 
@@ -68,6 +68,11 @@ urlpatterns = [
     path('api/google-login/', google_login, name='google_log'),
     # path('facebook-data-deletion/', facebook_data_deletion, name='facebook_data_deletion'),
 
+    path('register/', RegisterView.as_view(), name='register'),
+    path('verify-otp/', VerifyOTPView.as_view(), name='verify-otp'),
+    path('login/step1/', LoginStepOneView.as_view(), name='login-step1'),
+    path('login/step2/', LoginStepTwoView.as_view(), name='login-step2'),
+    path('resend-otp/', ResendOTPView.as_view(), name='resend_otp'),
 
     
 ]

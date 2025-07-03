@@ -17,6 +17,127 @@ class UserSerializer(serializers.ModelSerializer):
         
         
         
+# class UserCreateSerializer(serializers.ModelSerializer):
+#     totp_enabled = serializers.BooleanField(default=False, required=False)
+
+#     class Meta:
+#         model = User
+#         fields = ['id', 'username', 'email', 'password', 'role', 'totp_enabled']
+#         extra_kwargs = {'password': {'write_only': True}}
+
+#     def create(self, validated_data):
+#         totp_enabled = validated_data.pop('totp_enabled', False)
+#         password = validated_data.pop('password')
+
+#         user = User.objects.create(**validated_data)
+#         user.set_password(password)
+
+#         if totp_enabled:
+#             user.totp_secret = pyotp.random_base32()
+#         else:
+#             user.totp_secret = None
+        
+#         user.totp_enabled = totp_enabled
+#         user.save()
+
+#         return user
+
+#     def get_totp_details(self, user):
+#         """Generate and return the TOTP secret and QR code."""
+#         if not user.totp_secret:
+#             return {"totp_secret": None, "totp_qr_code": None, "qr_code_url": None}
+
+#         # Generate TOTP URI
+#         totp_uri = pyotp.totp.TOTP(user.totp_secret).provisioning_uri(
+#             name=user.email, issuer_name="locksmith"
+#         )
+
+#         # Generate QR Code
+#         qr = qrcode.make(totp_uri)
+        
+#         # Define QR Code Save Path
+#         qr_folder = os.path.join(settings.MEDIA_ROOT, "Customer_qr_codes")
+#         os.makedirs(qr_folder, exist_ok=True)  # Ensure directory exists
+
+#         qr_filename = f"{user.username}.png"
+#         qr_path = os.path.join(qr_folder, qr_filename)
+#         qr.save(qr_path)  # Save QR Code
+
+#         # Convert QR Code to Base64
+#         buffered = BytesIO()
+#         qr.save(buffered, format="PNG")
+#         qr_base64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
+
+#         # Generate Public URL for QR Code (if MEDIA_URL is set)
+#         qr_code_url = f"{settings.MEDIA_URL}Customer_qr_codes/{qr_filename}"
+
+#         return {
+#             "totp_secret": user.totp_secret,  # Include raw TOTP key
+#             "totp_qr_code": f"data:image/png;base64,{qr_base64}",  # Base64 QR Code
+#             "qr_code_url": qr_code_url  # URL to access the saved QR code
+#         }
+
+
+
+
+# class UserCreateSerializer(serializers.ModelSerializer):
+#     totp_enabled = serializers.BooleanField(default=False, required=False)
+
+#     class Meta:
+#         model = User
+#         fields = ['id', 'username', 'email', 'password', 'role', 'totp_enabled']
+#         extra_kwargs = {'password': {'write_only': True}}
+
+#     def create(self, validated_data):
+#         totp_enabled = validated_data.pop('totp_enabled', False)
+#         password = validated_data.pop('password')
+
+#         user = User(**validated_data)
+#         user.set_password(password)
+
+#         if totp_enabled:
+#             user.totp_secret = pyotp.random_base32()
+#         else:
+#             user.totp_secret = None
+
+#         user.save()
+#         return user
+
+#     def get_totp_details(self, user):
+#         if not user.totp_secret:
+#             return {"totp_secret": None, "totp_qr_code": None, "qr_code_url": None}
+
+#         # ✅ Generate URI for Google Authenticator
+#         totp_uri = pyotp.TOTP(user.totp_secret).provisioning_uri(
+#             name=user.email,
+#             issuer_name="LockQuick"
+#         )
+
+#         # ✅ Create QR code
+#         qr = qrcode.make(totp_uri)
+
+#         # ✅ Define QR code folder by role
+#         folder_name = "Customer_qr_codes" if user.role == "customer" else "Locksmith_qr_codes"
+#         qr_folder = os.path.join(settings.MEDIA_ROOT, folder_name)
+#         os.makedirs(qr_folder, exist_ok=True)
+
+#         qr_filename = f"{user.username}.png"
+#         qr_path = os.path.join(qr_folder, qr_filename)
+#         qr.save(qr_path)
+
+#         # ✅ Convert QR to base64
+#         buffered = BytesIO()
+#         qr.save(buffered, format="PNG")
+#         qr_base64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
+
+#         qr_code_url = f"{settings.MEDIA_URL}{folder_name}/{qr_filename}"
+
+#         return {
+#             "totp_secret": user.totp_secret,
+#             "totp_qr_code": f"data:image/png;base64,{qr_base64}",
+#             "qr_code_url": qr_code_url
+#         }
+
 class UserCreateSerializer(serializers.ModelSerializer):
     totp_enabled = serializers.BooleanField(default=False, required=False)
 
@@ -29,52 +150,56 @@ class UserCreateSerializer(serializers.ModelSerializer):
         totp_enabled = validated_data.pop('totp_enabled', False)
         password = validated_data.pop('password')
 
-        user = User.objects.create(**validated_data)
+        user = User(**validated_data)
         user.set_password(password)
 
         if totp_enabled:
             user.totp_secret = pyotp.random_base32()
         else:
             user.totp_secret = None
-        
-        user.totp_enabled = totp_enabled
-        user.save()
 
+        user.save()
         return user
 
     def get_totp_details(self, user):
-        """Generate and return the TOTP secret and QR code."""
         if not user.totp_secret:
-            return {"totp_secret": None, "totp_qr_code": None, "qr_code_url": None}
+            return {
+                "totp_secret": None,
+                "totp_qr_code": None,
+                "qr_code_url": None
+            }
 
-        # Generate TOTP URI
-        totp_uri = pyotp.totp.TOTP(user.totp_secret).provisioning_uri(
-            name=user.email, issuer_name="locksmith"
+        # ✅ Generate provisioning URI for Google Authenticator
+        totp_uri = pyotp.TOTP(user.totp_secret).provisioning_uri(
+            name=user.email,
+            issuer_name="LockQuick"
         )
 
-        # Generate QR Code
+        # ✅ Generate QR Code
         qr = qrcode.make(totp_uri)
-        
-        # Define QR Code Save Path
-        qr_folder = os.path.join(settings.MEDIA_ROOT, "Customer_qr_codes")
-        os.makedirs(qr_folder, exist_ok=True)  # Ensure directory exists
 
+        # ✅ Define save location by role
+        folder_name = "Customer_qr_codes" if user.role == "customer" else "Locksmith_qr_codes"
+        qr_folder = os.path.join(settings.MEDIA_ROOT, folder_name)
+        os.makedirs(qr_folder, exist_ok=True)
+
+        # ✅ Save QR code image
         qr_filename = f"{user.username}.png"
         qr_path = os.path.join(qr_folder, qr_filename)
-        qr.save(qr_path)  # Save QR Code
+        qr.save(qr_path)
 
-        # Convert QR Code to Base64
+        # ✅ Convert to Base64 string
         buffered = BytesIO()
         qr.save(buffered, format="PNG")
         qr_base64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
 
-        # Generate Public URL for QR Code (if MEDIA_URL is set)
-        qr_code_url = f"{settings.MEDIA_URL}Customer_qr_codes/{qr_filename}"
+        # ✅ Public media URL for access
+        qr_code_url = f"{settings.MEDIA_URL}{folder_name}/{qr_filename}"
 
         return {
-            "totp_secret": user.totp_secret,  # Include raw TOTP key
-            "totp_qr_code": f"data:image/png;base64,{qr_base64}",  # Base64 QR Code
-            "qr_code_url": qr_code_url  # URL to access the saved QR code
+            "totp_secret": user.totp_secret,
+            "totp_qr_code": f"data:image/png;base64,{qr_base64}",
+            "qr_code_url": qr_code_url
         }
 
 
@@ -547,7 +672,7 @@ class CustomSocialLoginSerializer(SocialLoginSerializer):
     
 # serializers.py
 from rest_framework import serializers
-from .models import WebsiteContent
+from .models import WebsiteContent , SuggestedService
 
 class WebsiteContentSerializer(serializers.ModelSerializer):
     class Meta:
@@ -555,3 +680,23 @@ class WebsiteContentSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
     
+    
+    
+class SuggestedServiceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SuggestedService
+        fields = '__all__'
+        read_only_fields = ['status', 'suggested_by', 'created_at']
+
+    def validate(self, attrs):
+        if attrs.get('service_type') == 'automotive':
+            if not attrs.get('car_key_details'):
+                raise serializers.ValidationError("Car key details are required for automotive services.")
+            if not isinstance(attrs['car_key_details'], list):
+                raise serializers.ValidationError("Car key details must be a list.")
+            for entry in attrs['car_key_details']:
+                required_fields = ['manufacturer', 'model', 'year_from', 'year_to', 'number_of_buttons']
+                for field in required_fields:
+                    if field not in entry:
+                        raise serializers.ValidationError(f"Missing '{field}' in car key details.")
+        return attrs

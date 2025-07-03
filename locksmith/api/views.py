@@ -1140,7 +1140,7 @@ class LocksmithViewSet(viewsets.ModelViewSet):
         # Render HTML email template
         context = {
             'locksmith_name': locksmith.user.username,
-            'support_email': "support@lockquick.com.au"  # Replace with your support email
+            'support_email': "contact@lockquick.com.au"  # Replace with your support email
         }
         html_content = render_to_string("emails/locksmith_rejected.html", context)
         text_content = strip_tags(html_content)  # Fallback text email
@@ -1270,14 +1270,24 @@ class LocksmithViewSet(viewsets.ModelViewSet):
     
     @action(detail=True, methods=['put'], permission_classes=[IsAdminUser])
     def toggle_discount(self, request, pk=None):
-        """
-        Admin toggles locksmith discount eligibility (10% platform fee waived).
-        """
+    
         locksmith = self.get_object()
-        locksmith.is_discounted = not locksmith.is_discounted
+        incoming_value = request.data.get("is_discounted")
+
+        if incoming_value is not None:
+            locksmith.is_discounted = bool(incoming_value)
+        else:
+            locksmith.is_discounted = not locksmith.is_discounted  # fallback to toggle
+
         locksmith.save()
+
         status = "enabled" if locksmith.is_discounted else "disabled"
-        return Response({"status": f"Discount {status} for {locksmith.user.username}"})
+
+        return Response({
+            "status": f"Discount {status} for {locksmith.user.username}",
+            "is_discounted": locksmith.is_discounted
+        })
+
         
       
         
@@ -1343,6 +1353,60 @@ class BookingViewSet(viewsets.ModelViewSet):
         
 
     
+    # def perform_create(self, serializer):
+    #     user = self.request.user
+
+    #     if not user.is_authenticated:
+    #         raise serializers.ValidationError({"error": "User must be authenticated to create a booking."})
+
+    #     if user.role != "customer":
+    #         raise serializers.ValidationError({"error": "Only customers can create bookings."})
+
+    #     data = self.request.data
+    #     locksmith_service_id = data.get('locksmith_service')
+    #     try:
+    #         locksmith_service = LocksmithServices.objects.get(id=locksmith_service_id)
+    #     except LocksmithServices.DoesNotExist:
+    #         raise serializers.ValidationError({"error": "Invalid locksmith service."})
+
+    #     number_of_keys = int(data.get('number_of_keys', 0))
+    #     additional_key_price = locksmith_service.additional_key_price or Decimal("0.00")
+
+    #     admin_settings = AdminSettings.objects.first()
+    #     if not admin_settings:
+    #         raise serializers.ValidationError({"error": "Admin settings not configured."})
+
+    #     commission_amount = admin_settings.commission_amount or Decimal("0.00")
+    #     percentage = admin_settings.percentage or Decimal("0.00")
+    #     gst_percentage = admin_settings.gst_percentage or Decimal("0.00")
+
+    #     base_price = locksmith_service.custom_price or Decimal("0.00")
+    #     keys_total = number_of_keys * additional_key_price
+
+    #     subtotal = base_price + keys_total
+
+    #     percentage_amount = (subtotal * percentage) / Decimal("100")
+    #     platform_income = commission_amount + percentage_amount
+
+    #     gst_amount = (platform_income * gst_percentage) / Decimal("100")
+
+    #     total_price = subtotal + platform_income + gst_amount
+
+    #     # Get emergency value from request (default to False if not provided)
+    #     emergency = data.get('emergency', False)
+    #     if isinstance(emergency, str):
+    #         emergency = emergency.lower() in ['true', '1', 'yes']  # Convert string to boolean
+
+    #     serializer.save(
+    #         customer=user,
+    #         locksmith_service=locksmith_service,
+    #         number_of_keys=number_of_keys,
+    #         total_price=total_price,
+    #         emergency=emergency
+    #     )
+
+
+
     def perform_create(self, serializer):
         user = self.request.user
 
@@ -1354,6 +1418,7 @@ class BookingViewSet(viewsets.ModelViewSet):
 
         data = self.request.data
         locksmith_service_id = data.get('locksmith_service')
+
         try:
             locksmith_service = LocksmithServices.objects.get(id=locksmith_service_id)
         except LocksmithServices.DoesNotExist:
@@ -1362,6 +1427,7 @@ class BookingViewSet(viewsets.ModelViewSet):
         number_of_keys = int(data.get('number_of_keys', 0))
         additional_key_price = locksmith_service.additional_key_price or Decimal("0.00")
 
+        # Admin Fee Settings
         admin_settings = AdminSettings.objects.first()
         if not admin_settings:
             raise serializers.ValidationError({"error": "Admin settings not configured."})
@@ -1370,32 +1436,41 @@ class BookingViewSet(viewsets.ModelViewSet):
         percentage = admin_settings.percentage or Decimal("0.00")
         gst_percentage = admin_settings.gst_percentage or Decimal("0.00")
 
+        # Price Calculations
         base_price = locksmith_service.custom_price or Decimal("0.00")
         keys_total = number_of_keys * additional_key_price
-
         subtotal = base_price + keys_total
 
-        percentage_amount = (subtotal * percentage) / Decimal("100")
-        platform_income = commission_amount + percentage_amount
+        locksmith = locksmith_service.locksmith
 
-        gst_amount = (platform_income * gst_percentage) / Decimal("100")
+        # ✅ Waive 10% percentage fee if locksmith is discounted
+        if locksmith.is_discounted:
+            percentage_amount = Decimal("0.00")
+        else:
+            percentage_amount = (subtotal * percentage) / Decimal("100")
 
-        total_price = subtotal + platform_income + gst_amount
+        platform_fee = commission_amount + percentage_amount
+        gst_amount = (platform_fee * gst_percentage) / Decimal("100")
+        total_price = subtotal + platform_fee + gst_amount
 
-        # Get emergency value from request (default to False if not provided)
+        # Convert emergency field
         emergency = data.get('emergency', False)
         if isinstance(emergency, str):
-            emergency = emergency.lower() in ['true', '1', 'yes']  # Convert string to boolean
+            emergency = emergency.lower() in ['true', '1', 'yes']
 
+        # Save only what's in the Booking model
         serializer.save(
             customer=user,
             locksmith_service=locksmith_service,
             number_of_keys=number_of_keys,
             total_price=total_price,
-            emergency=emergency
+            emergency=emergency,
+            customer_contact_number=data.get('customer_contact_number', ''),
+            customer_address=data.get('customer_address', ''),
+            house_number=data.get('house_number', '')
         )
 
-        
+            
 
     
     @action(detail=True, methods=['post'],permission_classes=[IsCustomer])
@@ -1424,8 +1499,8 @@ class BookingViewSet(viewsets.ModelViewSet):
                     'quantity': 1,
                 }],
                 mode='payment',
-                # success_url="https://lockquick.com.au/payment-success?session_id={CHECKOUT_SESSION_ID}",
-                success_url="http://localhost:3000/payment-success?session_id={CHECKOUT_SESSION_ID}",
+                success_url="https://lockquick.com.au/payment-success?session_id={CHECKOUT_SESSION_ID}",
+                # success_url="http://localhost:3000/payment-success?session_id={CHECKOUT_SESSION_ID}",
                 cancel_url="https://lockquick.com.au/payment-cancel",
             )
 
@@ -2599,6 +2674,10 @@ def get_address_suggestions(request):
 
 from .models import WebsiteContent
 from .serializers import WebsiteContentSerializer
+from django.core.mail import EmailMessage
+
+
+
 class WebsiteContentViewSet(viewsets.ModelViewSet):
     queryset = WebsiteContent.objects.all()
     serializer_class = WebsiteContentSerializer
@@ -2615,3 +2694,400 @@ class WebsiteContentViewSet(viewsets.ModelViewSet):
         if section:
             return base_qs.filter(section=section)
         return base_qs
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework.permissions import AllowAny
+from rest_framework_simplejwt.tokens import RefreshToken
+from django.contrib.auth import authenticate
+from django.utils import timezone
+
+from .models import User, Locksmith, Customer , SuggestedService
+from .serializers import UserCreateSerializer , SuggestedServiceSerializer
+from .utils import send_email_otp
+from .utils import verify_user_otp
+
+
+
+
+class RegisterView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = UserCreateSerializer(data=request.data)
+        if serializer.is_valid():
+            user = serializer.save()
+
+            # ✅ Create customer or locksmith profile
+            if user.role == "customer":
+                Customer.objects.create(
+                    user=user,
+                    latitude=request.data.get("latitude"),
+                    longitude=request.data.get("longitude"),
+                    address=request.data.get("address", ""),
+                    contact_number=request.data.get("contact_number", "")
+                )
+            elif user.role == "locksmith":
+                Locksmith.objects.create(user=user)
+
+            # ✅ Always send TOTP details (generate even if not enabled)
+            totp_details = serializer.get_totp_details(user)
+
+            # ✅ Always send Email OTP
+            send_email_otp(user)
+
+            return Response({
+                "message": "Registration successful",
+                "user_id": user.id,
+                "email": user.email,
+                "role": user.role,
+                "totp_secret": totp_details["totp_secret"],
+                "totp_qr_code": totp_details["totp_qr_code"],
+                "qr_code_url": totp_details["qr_code_url"],
+                "info": "TOTP QR Code and Email OTP sent. Please verify either one.",
+                "next_step": "verify_otp"
+            }, status=status.HTTP_201_CREATED)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    
+    
+    
+    
+User = get_user_model()
+
+class VerifyOTPView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        username = request.data.get('username')
+        role = request.data.get('role')
+        otp_code = request.data.get('otp_code')
+
+        if not username or not role or not otp_code:
+            return Response({"error": "Username, role, and OTP code are required"}, status=400)
+
+        try:
+            user = User.objects.get(username=username, role=role)
+        except User.DoesNotExist:
+            return Response({"error": "User not found"}, status=404)
+
+        valid, method = verify_user_otp(user, otp_code)
+
+        if not valid:
+            if method == "expired":
+                return Response({"error": "OTP has expired"}, status=400)
+            return Response({"error": "Invalid OTP code"}, status=400)
+
+        # ✅ OTP verified – issue JWT tokens
+        refresh = RefreshToken.for_user(user)
+
+        return Response({
+            "message": f"OTP verified using {method.upper()}",
+            "username": user.username,
+            "email": user.email,
+            "role": user.role,
+            "access": str(refresh.access_token),
+            "refresh": str(refresh)
+        }, status=200)
+  
+
+class ResendOTPView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        username = request.data.get('username')
+        role = request.data.get('role')
+
+        if not username or not role:
+            return Response({"error": "Username and role are required"}, status=400)
+
+        try:
+            user = User.objects.get(username=username, role=role)
+        except User.DoesNotExist:
+            return Response({"error": "User not found"}, status=404)
+
+        try:
+            send_email_otp(user)
+            return Response({
+                "message": "A new email OTP has been sent to your email address."
+            }, status=200)
+        except Exception as e:
+            return Response({
+                "error": f"Failed to send OTP. Reason: {str(e)}"
+            }, status=500)
+        
+        
+
+
+class LoginStepOneView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        username = request.data.get("username")
+        password = request.data.get("password")
+        expected_role = request.data.get("role")
+
+        if not expected_role:
+            return Response({'error': 'Role is required'}, status=400)
+
+        user = authenticate(username=username, password=password)
+        if not user:
+            return Response({'error': 'Invalid credentials'}, status=401)
+
+        if user.role != expected_role:
+            return Response({'error': f'Invalid role. You are registered as {user.role}.'}, status=403)
+
+        send_email_otp(user)
+
+        return Response({
+            'message': 'Step 1 successful. OTP sent via email. You can also use Google Authenticator.',
+            'user_id': user.id,
+            'role': user.role,
+            'has_totp': bool(user.totp_secret),
+        }, status=200)
+
+
+
+
+
+class LoginStepTwoView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        username = request.data.get("username")
+        otp_code = request.data.get("otp_code")
+        role = request.data.get("role")
+
+        if not username or not otp_code or not role:
+            return Response({"error": "Username, OTP, and Role are required"}, status=400)
+
+        try:
+            user = User.objects.get(username=username, role=role)
+        except User.DoesNotExist:
+            return Response({"error": "User not found"}, status=404)
+
+        valid, method = verify_user_otp(user, otp_code)
+
+        if not valid:
+            return Response({
+                "error": "OTP expired" if method == "expired" else "Invalid OTP code"
+            }, status=400)
+
+        return self.login_success(user)
+
+    def login_success(self, user):
+        refresh = RefreshToken.for_user(user)
+
+        data = {
+            "message": "Login successful",
+            "user_id": user.id,
+            "username": user.username,
+            "role": user.role,
+            "access": str(refresh.access_token),
+            "refresh": str(refresh),
+        }
+
+        # Locksmith extra fields
+        if user.role == "locksmith":
+            locksmith = getattr(user, "locksmith", None)
+            if locksmith:
+                data.update({
+                    "is_verified": locksmith.is_verified,
+                    "is_approved": locksmith.is_approved,
+                })
+
+        return Response(data, status=200)
+    
+    
+    
+    
+User = get_user_model()
+logger = logging.getLogger(__name__)
+    
+class SuggestedServiceViewSet(viewsets.ModelViewSet):
+    queryset = SuggestedService.objects.all()
+    serializer_class = SuggestedServiceSerializer
+
+    def perform_create(self, serializer):
+        suggestion = serializer.save(suggested_by=self.request.user)
+
+        # Format posted data
+        posted_data = "\n".join([
+            f"{key}: {value}"
+            for key, value in self.request.data.items()
+            if key != "car_key_details"
+        ])
+
+        # Format car key details if present
+        car_keys_data = ""
+        if "car_key_details" in self.request.data and self.request.data["car_key_details"]:
+            car_keys = self.request.data["car_key_details"]
+            try:
+                # ensure it's iterable
+                if isinstance(car_keys, str):
+                    import json
+                    car_keys = json.loads(car_keys)
+                car_keys_data = "\n\nCar Key Details:\n"
+                for idx, key in enumerate(car_keys, start=1):
+                    car_keys_data += (
+                        f"\nKey {idx}:\n"
+                        f"Manufacturer: {key.get('manufacturer')}\n"
+                        f"Model: {key.get('model')}\n"
+                        f"Year From: {key.get('year_from')}\n"
+                        f"Year To: {key.get('year_to')}\n"
+                        f"Number of Buttons: {key.get('number_of_buttons')}\n"
+                    )
+            except Exception as e:
+                car_keys_data += "\nError reading car key details.\n"
+
+        # Final message
+        message_body = (
+            f"🔔 Locksmith {self.request.user.username} suggested a new service:\n\n"
+            f"{posted_data}"
+            f"{car_keys_data}"
+        )
+
+        # Send email to admin
+        try:
+            send_mail(
+                subject="🔔 New Service Suggestion from Locksmith",
+                message=message_body,
+                from_email="contact@lockquick.com.au",
+                recipient_list=["developerbornov@gmail.com"],
+                fail_silently=True
+            )
+        except Exception as e:
+            print("Failed to send service suggestion email:", str(e))
+
+
+
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAdmin])
+    def confirm_and_add(self, request, pk=None):
+        suggestion = get_object_or_404(SuggestedService, pk=pk)
+
+        # Prevent duplicate services
+        if AdminService.objects.filter(name__iexact=suggestion.name, service_type=suggestion.service_type).exists():
+            return Response({"error": "This service already exists."}, status=400)
+
+        # Allow admin to modify fields during approval
+        serializer = self.get_serializer(suggestion, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        suggestion = serializer.save(status='approved')
+
+        name = serializer.validated_data.get('name', suggestion.name)
+        service_type = serializer.validated_data.get('service_type', suggestion.service_type)
+
+        # ✅ Create AdminService
+        new_service = AdminService.objects.create(
+            name=name,
+            service_type=service_type
+        )
+        logger.info(f"[SERVICE CREATE] AdminService created: {new_service}")
+
+        # ✅ Create CarKeyDetails if automotive
+        created_key = None
+        if service_type == 'automotive' and suggestion.car_key_details:
+            try:
+                key_data = suggestion.car_key_details[0]  # only one for now
+                created_key = CarKeyDetails.objects.create(
+                    manufacturer=key_data.get('manufacturer'),
+                    model=key_data.get('model'),
+                    year_from=key_data.get('year_from'),
+                    year_to=key_data.get('year_to'),
+                    number_of_buttons=key_data.get('number_of_buttons')
+                )
+                logger.info(f"[CAR KEY CREATE] {created_key}")
+            except Exception as e:
+                logger.error(f"[CAR KEY ERROR] Failed to create key: {e}")
+
+        # ✅ Create LocksmithService
+        try:
+            locksmith = Locksmith.objects.get(user=suggestion.suggested_by)
+            LocksmithServices.objects.create(
+                locksmith=locksmith,
+                admin_service=new_service,
+                custom_price=suggestion.price,
+                total_price=suggestion.price,
+                service_type=service_type,
+                approved=True,
+                additional_key_price=suggestion.additional_key_price,
+                car_key_details=created_key
+            )
+            logger.info(f"[LOCKSMITH SERVICE CREATED] For {locksmith.user.username}")
+        except Locksmith.DoesNotExist:
+            logger.warning("[LOCKSMITH MISSING] No locksmith found for suggesting user.")
+
+        # ✅ Notify the suggester
+        if suggestion.suggested_by.email:
+            try:
+                EmailMessage(
+                    subject="✅ Your Service Suggestion Approved",
+                    body=(
+                        f"Hi {suggestion.suggested_by.username},\n\n"
+                        f"Your suggested service '{name}' has been approved and added to the system.\n"
+                        f"Thank you for contributing!\n\n"
+                        f"— Team LockQuick"
+                    ),
+                    from_email="contact@lockquick.com.au",
+                    to=[suggestion.suggested_by.email]
+                ).send(fail_silently=False)
+                logger.info(f"[EMAIL] Sent approval to {suggestion.suggested_by.email}")
+            except Exception as e:
+                logger.error(f"[EMAIL ERROR] Could not notify suggester: {e}")
+
+        # ✅ Notify all other locksmiths one-by-one
+        all_locksmiths = User.objects.filter(role='locksmith').exclude(id=suggestion.suggested_by.id)
+        logger.info(f"[EMAIL DEBUG] Total locksmiths to notify: {all_locksmiths.count()}")
+
+        for user in all_locksmiths:
+            if user.email:
+                try:
+                    EmailMessage(
+                        subject=f"🆕 New Service Available: {name}",
+                        body=(
+                            f"Hi {user.username},\n\n"
+                            f"A new service '{name}' has just been approved by admin and is now available in your dashboard.\n\n"
+                            f"Log in to your dashboard to start offering this service.\n\n"
+                            f"— Team LockQuick"
+                        ),
+                        from_email="contact@lockquick.com.au",
+                        to=[user.email]
+                    ).send(fail_silently=False)
+                    logger.info(f"[EMAIL SENT] Notification sent to {user.email}")
+                except Exception as e:
+                    logger.error(f"[EMAIL ERROR] Failed to send to {user.email}: {str(e)}")
+            else:
+                logger.warning(f"[EMAIL DEBUG] Skipped {user.username} — no email.")
+
+        return Response({"detail": "Service approved and added successfully."})
+
+    @action(detail=True, methods=['post'], permission_classes=[permissions.IsAdminUser])
+    def reject_suggestion(self, request, pk=None):
+        suggestion = get_object_or_404(SuggestedService, pk=pk)
+        suggestion.status = 'rejected'
+        suggestion.save()
+        return Response({"detail": "Suggestion rejected."})
