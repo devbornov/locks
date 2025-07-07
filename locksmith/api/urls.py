@@ -6,7 +6,7 @@ from .views import (
     ServiceRequestViewSet, ServiceBidViewSet, 
     AdminSettingsViewSet,AllLocksmiths,CustomersViewSet,AdmincomissionViewSet,CustomerServiceRequestViewSet,Approvalverification, BookingViewSet , 
     AdminLocksmithServiceViewSet,AdminLocksmithServiceApprovalViewSet , CustomerProfileViewSet , ContactMessageViewSet , ForgotPasswordViewSet
-    , CusCarKeyDetailsViewSet , get_address_suggestions ,WebsiteContentViewSet , SuggestedServiceViewSet
+    , CusCarKeyDetailsViewSet , get_address_suggestions ,WebsiteContentViewSet , SuggestedServiceViewSet , CCTVTechnicianPreRegistrationViewSet
 )
 # from .views import stripe_webhook
 
@@ -44,6 +44,7 @@ router.register(r'car-key-details', CusCarKeyDetailsViewSet, basename='car-key-d
 
 router.register(r'content', WebsiteContentViewSet, basename='content')
 router.register(r'suggested-services', SuggestedServiceViewSet)
+router.register(r'cctv/pre-register', CCTVTechnicianPreRegistrationViewSet, basename='cctv-preregister')
 
 
 # URL patterns

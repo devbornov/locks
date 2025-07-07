@@ -1,6 +1,7 @@
 from rest_framework import viewsets, permissions , filters
 from .permissions import IsAdmin
 import csv
+from rest_framework.exceptions import NotFound
 from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
 from rest_framework.decorators import action
@@ -495,29 +496,63 @@ class LoginView(APIView):
 
 
 
-# Custom Permissions
+# # Custom Permissions
+# class IsAdmin(permissions.BasePermission):
+#     def has_permission(self, request, view):
+#         user = request.user
+#         return user.is_authenticated and getattr(user, 'role', None) == 'admin'
+
+# class IsLocksmith(permissions.BasePermission):
+#     def has_permission(self, request, view):
+#         return request.user.role == 'locksmith'  # Adjust role check for locksmiths
+
+# class IsCustomer(permissions.BasePermission):
+#     def has_permission(self, request, view):
+#         return request.user.is_authenticated and getattr(request.user, 'role', None) == 'customer'  # Adjust role check for customers
+    
+    
+# class IsAdminOrCustomer(permissions.BasePermission):
+#     def has_permission(self, request, view):
+#         return request.user.role in ['admin', 'customer']
+    
+    
+    
+# class IsAdminOrLocksmith(permissions.BasePermission):
+#     def has_permission(self, request, view):
+#         return request.user.role in ['admin', 'locksmith']
+
+
+
 class IsAdmin(permissions.BasePermission):
     def has_permission(self, request, view):
-        return request.user.role == 'admin'  # Adjust role check as per your user model
+        user = request.user
+        return user.is_authenticated and getattr(user, 'role', None) == 'admin'
+
 
 class IsLocksmith(permissions.BasePermission):
     def has_permission(self, request, view):
-        return request.user.role == 'locksmith'  # Adjust role check for locksmiths
+        user = request.user
+        return user.is_authenticated and getattr(user, 'role', None) == 'locksmith'
+
 
 class IsCustomer(permissions.BasePermission):
     def has_permission(self, request, view):
-        return request.user.is_authenticated and getattr(request.user, 'role', None) == 'customer'  # Adjust role check for customers
-    
-    
+        user = request.user
+        return user.is_authenticated and getattr(user, 'role', None) == 'customer'
+
+
 class IsAdminOrCustomer(permissions.BasePermission):
     def has_permission(self, request, view):
-        return request.user.role in ['admin', 'customer']
-    
-    
-    
+        user = request.user
+        return user.is_authenticated and getattr(user, 'role', None) in ['admin', 'customer']
+
+
 class IsAdminOrLocksmith(permissions.BasePermission):
     def has_permission(self, request, view):
-        return request.user.role in ['admin', 'locksmith']
+        user = request.user
+        return user.is_authenticated and getattr(user, 'role', None) in ['admin', 'locksmith']
+
+
 
 # Admin Views
 class UserViewSet(viewsets.ModelViewSet):
@@ -1166,6 +1201,19 @@ class LocksmithViewSet(viewsets.ModelViewSet):
     def locksmithform_val(self, request):
         locksmith = Locksmith.objects.get(user=request.user)  # Get locksmith linked to the logged-in user
         return Response(LocksmithSerializer(locksmith).data)
+    
+    # @action(detail=False, methods=['get'], permission_classes=[IsLocksmith])
+    # def locksmithform_val(self, request):
+    #     try:
+    #         locksmith = Locksmith.objects.get(user=request.user)
+    #     except Locksmith.DoesNotExist:
+    #         return Response({
+    #             "detail": "User not found",
+    #             "code": "user_not_found"
+    #         }, status=status.HTTP_404_NOT_FOUND)
+
+    #     serializer = LocksmithSerializer(locksmith)
+    #     return Response(serializer.data, status=status.HTTP_200_OK)
 
 
     # ✅ Create Stripe Express Account for Locksmith
@@ -2724,11 +2772,10 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
 from django.utils import timezone
 
-from .models import User, Locksmith, Customer , SuggestedService
-from .serializers import UserCreateSerializer , SuggestedServiceSerializer
+from .models import User, Locksmith, Customer , SuggestedService , CCTVTechnicianPreRegistration
+from .serializers import UserCreateSerializer , SuggestedServiceSerializer ,CCTVTechnicianPreRegistrationSerializer
 from .utils import send_email_otp
-from .utils import verify_user_otp
-
+from .utils import verify_user_otp , send_password_reset_otp
 
 
 
@@ -2740,7 +2787,7 @@ class RegisterView(APIView):
         if serializer.is_valid():
             user = serializer.save()
 
-            # ✅ Create customer or locksmith profile
+            # ✅ Set role and create Customer profile if needed
             if user.role == "customer":
                 Customer.objects.create(
                     user=user,
@@ -2749,10 +2796,12 @@ class RegisterView(APIView):
                     address=request.data.get("address", ""),
                     contact_number=request.data.get("contact_number", "")
                 )
-            elif user.role == "locksmith":
-                Locksmith.objects.create(user=user)
 
-            # ✅ Always send TOTP details (generate even if not enabled)
+            # ✅ Do NOT create Locksmith profile, just set the role
+            elif user.role == "locksmith":
+                pass  # Just keep the role in the User model
+
+            # ✅ Always send TOTP details
             totp_details = serializer.get_totp_details(user)
 
             # ✅ Always send Email OTP
@@ -2921,6 +2970,75 @@ class LoginStepTwoView(APIView):
 
         return Response(data, status=200)
     
+ 
+ 
+ 
+ 
+ 
+class ForgotPasswordRequestView(APIView):
+    permission_classes = [AllowAny]
+    def post(self, request):
+        email = request.data.get("email")
+        if not email:
+            return Response({"error": "Email is required"}, status=400)
+
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            return Response({"error": "No account found with this email"}, status=404)
+
+        send_password_reset_otp(user)
+        return Response({"message": "OTP sent to your email"}, status=200)
+    
+    
+    
+    
+class ResetPasswordView(APIView):
+    permission_classes = [AllowAny]
+    def post(self, request):
+        email = request.data.get("email")
+        otp = request.data.get("otp")
+        new_password = request.data.get("new_password")
+
+        if not email or not otp or not new_password:
+            return Response({"error": "Email, OTP, and new password are required"}, status=400)
+
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            return Response({"error": "Invalid email"}, status=404)
+
+        if user.otp_code != otp:
+            return Response({"error": "Invalid OTP"}, status=400)
+
+        if timezone.now() > user.otp_expiry:
+            return Response({"error": "OTP has expired"}, status=400)
+
+        user.set_password(new_password)
+        user.otp_code = None
+        user.otp_expiry = None
+        user.save()
+
+        return Response({"message": "Password reset successful"}, status=200)
+ 
+ 
+ 
+ 
+ 
+class CCTVTechnicianPreRegistrationViewSet(viewsets.ModelViewSet):
+    queryset = CCTVTechnicianPreRegistration.objects.all()
+    serializer_class = CCTVTechnicianPreRegistrationSerializer
+
+    def get_permissions(self):
+        if self.request.method == 'POST':
+            return [AllowAny()]  # Public access for POST
+        return [IsAdmin()]  # Authentication required for GET, PUT, DELETE, PATCH
+ 
+ 
+ 
+ 
+ 
+ 
     
     
     

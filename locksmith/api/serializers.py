@@ -672,7 +672,7 @@ class CustomSocialLoginSerializer(SocialLoginSerializer):
     
 # serializers.py
 from rest_framework import serializers
-from .models import WebsiteContent , SuggestedService
+from .models import WebsiteContent , SuggestedService , CCTVTechnicianPreRegistration
 
 class WebsiteContentSerializer(serializers.ModelSerializer):
     class Meta:
@@ -700,3 +700,15 @@ class SuggestedServiceSerializer(serializers.ModelSerializer):
                     if field not in entry:
                         raise serializers.ValidationError(f"Missing '{field}' in car key details.")
         return attrs
+    
+    
+    
+    
+    
+    
+    
+    
+class CCTVTechnicianPreRegistrationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CCTVTechnicianPreRegistration
+        fields = '__all__'

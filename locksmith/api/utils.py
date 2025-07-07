@@ -69,3 +69,22 @@ def verify_user_otp(user, otp_code):
             return True, "email"
 
     return False, "invalid"
+
+
+
+def send_password_reset_otp(user):
+    otp = str(random.randint(100000, 999999))
+    user.otp_code = otp
+    user.otp_expiry = timezone.now() + timezone.timedelta(minutes=10)
+    user.save()
+
+    subject = "Password Reset OTP - LockQuick"
+    message = f"Your OTP for password reset is {otp}. It expires in 10 minutes."
+
+    send_mail(
+        subject=subject,
+        message=message,
+        from_email="contact@lockquick.com.au",
+        recipient_list=[user.email],
+        fail_silently=False
+    )
