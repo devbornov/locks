@@ -526,6 +526,7 @@ class SuggestedService(models.Model):
         blank=True
     )
     car_key_details = models.JSONField(blank=True, null=True)
+    details = models.TextField(blank=True, null=True)
     status = models.CharField(max_length=20, choices=[
         ('pending', 'Pending'),
         ('approved', 'Approved'),

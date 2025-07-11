@@ -624,7 +624,7 @@ class AdminLocksmithServiceViewSet(viewsets.ModelViewSet):
     """
     Admin can manage services that locksmiths can choose from.
     """
-    queryset = AdminService.objects.all()
+    queryset = AdminService.objects.all().order_by('id')
     serializer_class = AdminServiceSerializer
     permission_classes = [permissions.IsAdminUser]
 
@@ -3218,28 +3218,28 @@ class SuggestedServiceViewSet(viewsets.ModelViewSet):
                 logger.error(f"[EMAIL ERROR] Could not notify suggester: {e}")
 
         # Notify all other locksmiths one-by-one
-        # all_locksmiths = User.objects.filter(role='locksmith').exclude(id=suggestion.suggested_by.id)
-        # logger.info(f"[EMAIL DEBUG] Total locksmiths to notify: {all_locksmiths.count()}")
+        all_locksmiths = User.objects.filter(role='locksmith').exclude(id=suggestion.suggested_by.id)
+        logger.info(f"[EMAIL DEBUG] Total locksmiths to notify: {all_locksmiths.count()}")
 
-        # for user in all_locksmiths:
-        #     if user.email:
-        #         try:
-        #             EmailMessage(
-        #                 subject=f"🆕 New Service Available: {name}",
-        #                 body=(
-        #                     f"Hi {user.username},\n\n"
-        #                     f"A new service '{name}' has just been approved by admin and is now available in your dashboard.\n\n"
-        #                     f"Log in to your dashboard to start offering this service.\n\n"
-        #                     f"— Team LockQuick"
-        #                 ),
-        #                 from_email="contact@lockquick.com.au",
-        #                 to=[user.email]
-        #             ).send(fail_silently=False)
-        #             logger.info(f"[EMAIL SENT] Notification sent to {user.email}")
-        #         except Exception as e:
-        #             logger.error(f"[EMAIL ERROR] Failed to send to {user.email}: {str(e)}")
-        #     else:
-        #         logger.warning(f"[EMAIL DEBUG] Skipped {user.username} — no email.")
+        for user in all_locksmiths:
+            if user.email:
+                try:
+                    EmailMessage(
+                        subject=f"🆕 New Service Available: {name}",
+                        body=(
+                            f"Hi {user.username},\n\n"
+                            f"A new service '{name}' has just been approved by admin and is now available in your dashboard.\n\n"
+                            f"Log in to your dashboard to start offering this service.\n\n"
+                            f"— Team LockQuick"
+                        ),
+                        from_email="contact@lockquick.com.au",
+                        to=[user.email]
+                    ).send(fail_silently=False)
+                    logger.info(f"[EMAIL SENT] Notification sent to {user.email}")
+                except Exception as e:
+                    logger.error(f"[EMAIL ERROR] Failed to send to {user.email}: {str(e)}")
+            else:
+                logger.warning(f"[EMAIL DEBUG] Skipped {user.username} — no email.")
 
         return Response({"detail": "Service approved and added successfully."})
 

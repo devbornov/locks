@@ -309,7 +309,7 @@ DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 
 DEFAULT_ADMIN_EMAIL = "contact@lockquick.com.au"         # change to actual admin email
-DEFAULT_FROM_EMAIL = "noreply@example.com"        # change to verified sender email
+# DEFAULT_FROM_EMAIL = "noreply@example.com"        # change to verified sender email
 
 
 

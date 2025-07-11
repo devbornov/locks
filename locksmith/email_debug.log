@@ -7264,3 +7264,345 @@ api.models.Locksmith.DoesNotExist: Locksmith matching query does not exist.
 [INFO] 2025-07-10 17:10:05,542 django.channels.server [mHTTP GET /api/carkeydetails/ 200 [0.01, 192.168.1.36:51202][0m
 [INFO] 2025-07-10 17:10:06,246 django.channels.server [mHTTP GET /api/suggested-services/ 200 [0.03, 192.168.1.36:51202][0m
 [INFO] 2025-07-10 17:10:06,260 django.channels.server [mHTTP GET /api/suggested-services/ 200 [0.01, 192.168.1.36:51382][0m
+[INFO] 2025-07-11 10:57:35,837 django.utils.autoreload Watching for file changes with StatReloader
+[INFO] 2025-07-11 10:58:17,825 django.channels.server [mHTTP GET /api/content/?section=locksmith 200 [0.07, 192.168.1.14:52521][0m
+[INFO] 2025-07-11 10:58:17,825 django.channels.server [mHTTP GET /api/content/?section=unlock_your_future 200 [0.07, 192.168.1.14:52522][0m
+[INFO] 2025-07-11 10:58:17,826 django.channels.server [mHTTP GET /api/content/?section=hero_banner 200 [0.08, 192.168.1.14:52519][0m
+[INFO] 2025-07-11 10:58:17,826 django.channels.server [mHTTP GET /api/content/?section=how_we_work 200 [0.07, 192.168.1.14:52524][0m
+[INFO] 2025-07-11 10:58:17,826 django.channels.server [mHTTP GET /api/content/?section=services 200 [0.07, 192.168.1.14:52523][0m
+[INFO] 2025-07-11 10:58:17,826 django.channels.server [mHTTP GET /api/content/?section=service_cards 200 [0.07, 192.168.1.14:52520][0m
+[INFO] 2025-07-11 10:58:17,853 django.channels.server [mHTTP GET /api/content/?section=unlock_your_future 200 [0.02, 192.168.1.14:52524][0m
+[INFO] 2025-07-11 10:58:17,855 django.channels.server [mHTTP GET /api/content/?section=how_we_work 200 [0.02, 192.168.1.14:52520][0m
+[INFO] 2025-07-11 10:58:17,857 django.channels.server [mHTTP GET /api/content/?section=last_section 200 [0.03, 192.168.1.14:52521][0m
+[INFO] 2025-07-11 10:58:17,857 django.channels.server [mHTTP GET /api/content/?section=hero_banner 200 [0.03, 192.168.1.14:52523][0m
+[INFO] 2025-07-11 10:58:17,858 django.channels.server [mHTTP GET /api/content/?section=footer 200 [0.03, 192.168.1.14:52522][0m
+[INFO] 2025-07-11 10:58:17,859 django.channels.server [mHTTP GET /api/content/?section=locksmith 200 [0.03, 192.168.1.14:52519][0m
+[INFO] 2025-07-11 10:58:17,882 django.channels.server [mHTTP GET /api/content/?section=services 200 [0.03, 192.168.1.14:52524][0m
+[INFO] 2025-07-11 10:58:17,883 django.channels.server [mHTTP GET /api/content/?section=image3 200 [0.02, 192.168.1.14:52522][0m
+[INFO] 2025-07-11 10:58:17,885 django.channels.server [mHTTP GET /api/content/?section=image2 200 [0.02, 192.168.1.14:52523][0m
+[INFO] 2025-07-11 10:58:17,885 django.channels.server [mHTTP GET /api/content/?section=image1 200 [0.02, 192.168.1.14:52521][0m
+[INFO] 2025-07-11 10:58:17,886 django.channels.server [mHTTP GET /api/content/?section=service_cards 200 [0.03, 192.168.1.14:52520][0m
+[INFO] 2025-07-11 10:58:17,888 django.channels.server [mHTTP GET /api/content/?section=last_section 200 [0.03, 192.168.1.14:52519][0m
+[INFO] 2025-07-11 10:58:17,909 django.channels.server [mHTTP GET /api/content/?section=image1 200 [0.02, 192.168.1.14:52521][0m
+[INFO] 2025-07-11 10:58:17,909 django.channels.server [mHTTP GET /api/content/?section=footer 200 [0.03, 192.168.1.14:52524][0m
+[INFO] 2025-07-11 10:58:17,909 django.channels.server [mHTTP GET /api/content/?section=image3 200 [0.02, 192.168.1.14:52522][0m
+[INFO] 2025-07-11 10:58:17,910 django.channels.server [mHTTP GET /api/content/?section=image2 200 [0.02, 192.168.1.14:52523][0m
+[INFO] 2025-07-11 10:58:18,034 django.channels.server [mHTTP GET /media/content_images/br13.webp 200 [0.13, 192.168.1.14:52551][0m
+[INFO] 2025-07-11 10:58:18,038 django.channels.server [mHTTP GET /media/content_images/br16.webp 200 [0.15, 192.168.1.14:52546][0m
+[INFO] 2025-07-11 10:58:18,040 django.channels.server [mHTTP GET /media/content_images/br19.png 200 [0.15, 192.168.1.14:52545][0m
+[INFO] 2025-07-11 10:58:28,728 django.channels.server [mHTTP OPTIONS /login/step1/ 200 [0.00, 192.168.1.14:52522][0m
+[INFO] 2025-07-11 10:58:38,312 django.channels.server [mHTTP POST /login/step1/ 200 [9.58, 192.168.1.14:52522][0m
+[INFO] 2025-07-11 10:59:25,122 django.channels.server [mHTTP OPTIONS /login/step2/ 200 [0.00, 192.168.1.14:52522][0m
+[INFO] 2025-07-11 10:59:25,168 django.channels.server [mHTTP POST /login/step2/ 200 [0.04, 192.168.1.14:52522][0m
+[INFO] 2025-07-11 10:59:25,216 django.channels.server [mHTTP OPTIONS /api/locksmiths/locksmithform_val/ 200 [0.00, 192.168.1.14:52522][0m
+[INFO] 2025-07-11 10:59:25,217 django.channels.server [mHTTP OPTIONS /api/locksmiths/locksmithform_val/ 200 [0.00, 192.168.1.14:63125][0m
+[INFO] 2025-07-11 10:59:25,227 django.channels.server [mHTTP GET /api/locksmiths/locksmithform_val/ 200 [0.01, 192.168.1.14:52522][0m
+[INFO] 2025-07-11 10:59:25,239 django.channels.server [mHTTP OPTIONS /api/Approvalverification/ 200 [0.01, 192.168.1.14:63125][0m
+[INFO] 2025-07-11 10:59:25,241 django.channels.server [mHTTP OPTIONS /api/Approvalverification/ 200 [0.01, 192.168.1.14:63128][0m
+[INFO] 2025-07-11 10:59:25,244 django.channels.server [mHTTP GET /api/locksmiths/locksmithform_val/ 200 [0.01, 192.168.1.14:52522][0m
+[INFO] 2025-07-11 10:59:25,253 django.channels.server [mHTTP GET /api/Approvalverification/ 200 [0.01, 192.168.1.14:63125][0m
+[INFO] 2025-07-11 10:59:25,257 django.channels.server [mHTTP OPTIONS /api/locksmiths/check_onboarding_status/ 200 [0.00, 192.168.1.14:52522][0m
+[INFO] 2025-07-11 10:59:25,268 django.channels.server [mHTTP GET /api/Approvalverification/ 200 [0.01, 192.168.1.14:63125][0m
+[INFO] 2025-07-11 10:59:26,193 django.channels.server [mHTTP GET /api/locksmiths/check_onboarding_status/ 200 [0.93, 192.168.1.14:52522][0m
+[INFO] 2025-07-11 10:59:27,002 django.channels.server [mHTTP GET /api/locksmiths/check_onboarding_status/ 200 [0.81, 192.168.1.14:52522][0m
+[INFO] 2025-07-11 10:59:27,936 django.channels.server [mHTTP OPTIONS /api/locksmiths/generate_stripe_login_link/ 200 [0.00, 192.168.1.14:52522][0m
+[INFO] 2025-07-11 10:59:27,937 django.channels.server [mHTTP OPTIONS /api/locksmiths/generate_stripe_login_link/ 200 [0.00, 192.168.1.14:63125][0m
+[INFO] 2025-07-11 10:59:28,597 django.channels.server [mHTTP GET /api/locksmiths/generate_stripe_login_link/ 200 [0.66, 192.168.1.14:63125][0m
+[INFO] 2025-07-11 10:59:29,254 django.channels.server [mHTTP GET /api/locksmiths/generate_stripe_login_link/ 200 [0.65, 192.168.1.14:63125][0m
+[INFO] 2025-07-11 11:44:36,926 django.utils.autoreload C:\Users\Bornov Engineering\Desktop\back\locks\locksmith\api\models.py changed, reloading.
+[INFO] 2025-07-11 11:44:38,770 django.utils.autoreload Watching for file changes with StatReloader
+[INFO] 2025-07-11 11:44:40,167 django.utils.autoreload C:\Users\Bornov Engineering\Desktop\back\locks\locksmith\api\models.py changed, reloading.
+[INFO] 2025-07-11 11:44:41,763 django.utils.autoreload Watching for file changes with StatReloader
+[INFO] 2025-07-11 12:42:30,413 django.utils.autoreload Watching for file changes with StatReloader
+[INFO] 2025-07-11 12:50:27,590 django.channels.server [mHTTP POST /login/ 200 [0.36, 127.0.0.1:62735][0m
+[INFO] 2025-07-11 12:50:45,701 django.channels.server [mHTTP POST /login/ 200 [0.36, 127.0.0.1:62747][0m
+[INFO] 2025-07-11 12:51:30,052 django.channels.server [mHTTP POST /api/suggested-services/ 201 [8.83, 127.0.0.1:62735][0m
+[INFO] 2025-07-11 12:51:59,486 django.channels.server [mHTTP POST /api/suggested-services/46/confirm_and_add/ 200 [1.91, 127.0.0.1:62735][0m
+[INFO] 2025-07-11 12:56:38,398 django.utils.autoreload C:\Users\Bornov Engineering\Desktop\back\locks\locksmith\api\views.py changed, reloading.
+[INFO] 2025-07-11 12:56:40,324 django.utils.autoreload Watching for file changes with StatReloader
+[INFO] 2025-07-11 12:56:41,639 django.utils.autoreload C:\Users\Bornov Engineering\Desktop\back\locks\locksmith\api\views.py changed, reloading.
+[INFO] 2025-07-11 12:56:43,177 django.utils.autoreload Watching for file changes with StatReloader
+[INFO] 2025-07-11 13:02:47,999 django.utils.autoreload C:\Users\Bornov Engineering\Desktop\back\locks\locksmith\api\views.py changed, reloading.
+[INFO] 2025-07-11 13:02:49,876 django.utils.autoreload Watching for file changes with StatReloader
+[INFO] 2025-07-11 13:24:54,756 django.utils.autoreload C:\Users\Bornov Engineering\Desktop\back\locks\locksmith\locksmith\settings.py changed, reloading.
+[INFO] 2025-07-11 13:24:56,629 django.utils.autoreload Watching for file changes with StatReloader
+[INFO] 2025-07-11 13:24:58,474 django.utils.autoreload C:\Users\Bornov Engineering\Desktop\back\locks\locksmith\locksmith\settings.py changed, reloading.
+[INFO] 2025-07-11 13:25:00,189 django.utils.autoreload Watching for file changes with StatReloader
+[INFO] 2025-07-11 13:25:37,685 django.utils.autoreload C:\Users\Bornov Engineering\Desktop\back\locks\locksmith\api\views.py changed, reloading.
+[INFO] 2025-07-11 13:25:39,375 django.utils.autoreload Watching for file changes with StatReloader
+[INFO] 2025-07-11 13:26:21,127 django.utils.autoreload C:\Users\Bornov Engineering\Desktop\back\locks\locksmith\api\views.py changed, reloading.
+[INFO] 2025-07-11 13:26:22,836 django.utils.autoreload Watching for file changes with StatReloader
+[INFO] 2025-07-11 13:26:28,380 django.utils.autoreload C:\Users\Bornov Engineering\Desktop\back\locks\locksmith\api\views.py changed, reloading.
+[INFO] 2025-07-11 13:26:30,064 django.utils.autoreload Watching for file changes with StatReloader
+[INFO] 2025-07-11 13:27:13,920 django.channels.server [mHTTP POST /api/suggested-services/ 201 [8.88, 127.0.0.1:61275][0m
+[INFO] 2025-07-11 13:27:50,683 django.channels.server [mHTTP POST /api/suggested-services/47/confirm_and_add/ 200 [21.66, 127.0.0.1:61275][0m
+[INFO] 2025-07-11 13:39:05,764 django.utils.autoreload C:\Users\Bornov Engineering\Desktop\back\locks\locksmith\api\views.py changed, reloading.
+[INFO] 2025-07-11 13:39:07,530 django.utils.autoreload Watching for file changes with StatReloader
+[INFO] 2025-07-11 13:39:12,017 django.utils.autoreload C:\Users\Bornov Engineering\Desktop\back\locks\locksmith\api\views.py changed, reloading.
+[INFO] 2025-07-11 13:39:13,650 django.utils.autoreload Watching for file changes with StatReloader
+[INFO] 2025-07-11 13:39:24,866 django.channels.server [mHTTP POST /api/suggested-services/ 201 [2.25, 127.0.0.1:61635][0m
+[INFO] 2025-07-11 13:39:59,441 django.channels.server [mHTTP POST /api/suggested-services/48/confirm_and_add/ 200 [28.22, 127.0.0.1:61635][0m
+[INFO] 2025-07-11 13:56:49,070 django.utils.autoreload Watching for file changes with StatReloader
+[INFO] 2025-07-11 13:58:12,962 django.utils.autoreload C:\Users\Bornov Engineering\Desktop\back\locks\locksmith\api\views.py changed, reloading.
+[INFO] 2025-07-11 13:58:14,785 django.utils.autoreload Watching for file changes with StatReloader
+[INFO] 2025-07-11 13:58:25,554 django.utils.autoreload C:\Users\Bornov Engineering\Desktop\back\locks\locksmith\api\views.py changed, reloading.
+[INFO] 2025-07-11 13:58:27,221 django.utils.autoreload Watching for file changes with StatReloader
+[INFO] 2025-07-11 13:58:30,655 django.utils.autoreload C:\Users\Bornov Engineering\Desktop\back\locks\locksmith\api\views.py changed, reloading.
+[INFO] 2025-07-11 13:58:32,229 django.utils.autoreload Watching for file changes with StatReloader
+[INFO] 2025-07-11 13:58:34,589 django.utils.autoreload C:\Users\Bornov Engineering\Desktop\back\locks\locksmith\api\views.py changed, reloading.
+[INFO] 2025-07-11 13:58:36,108 django.utils.autoreload Watching for file changes with StatReloader
+[INFO] 2025-07-11 13:58:55,681 django.utils.autoreload C:\Users\Bornov Engineering\Desktop\back\locks\locksmith\api\views.py changed, reloading.
+[INFO] 2025-07-11 13:58:57,273 django.utils.autoreload Watching for file changes with StatReloader
+[WARNING] 2025-07-11 13:59:48,561 django.request Unauthorized: /api/suggested-services/
+[WARNING] 2025-07-11 13:59:48,562 django.channels.server [31;1mHTTP POST /api/suggested-services/ 401 [0.04, 127.0.0.1:52093][0m
+[INFO] 2025-07-11 13:59:55,517 django.channels.server [mHTTP POST /login/ 200 [0.37, 127.0.0.1:52093][0m
+[INFO] 2025-07-11 14:00:05,465 django.channels.server [mHTTP POST /login/ 200 [0.35, 127.0.0.1:52103][0m
+[INFO] 2025-07-11 14:00:33,750 django.channels.server [mHTTP POST /api/suggested-services/ 201 [8.86, 127.0.0.1:52093][0m
+[ERROR] 2025-07-11 14:00:43,502 django.request Internal Server Error: /api/suggested-services/49/confirm_and_add/
+Traceback (most recent call last):
+  File "C:\Users\Bornov Engineering\Desktop\back\locks\venv\Lib\site-packages\asgiref\sync.py", line 518, in thread_handler
+    raise exc_info[1]
+  File "C:\Users\Bornov Engineering\Desktop\back\locks\venv\Lib\site-packages\django\core\handlers\exception.py", line 42, in inner
+    response = await get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Bornov Engineering\Desktop\back\locks\venv\Lib\site-packages\asgiref\sync.py", line 518, in thread_handler
+    raise exc_info[1]
+  File "C:\Users\Bornov Engineering\Desktop\back\locks\venv\Lib\site-packages\django\core\handlers\base.py", line 253, in _get_response_async
+    response = await wrapped_callback(
+               ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Bornov Engineering\Desktop\back\locks\venv\Lib\site-packages\asgiref\sync.py", line 468, in __call__
+    ret = await asyncio.shield(exec_coro)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python312\Lib\concurrent\futures\thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Bornov Engineering\Desktop\back\locks\venv\Lib\site-packages\asgiref\sync.py", line 522, in thread_handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Bornov Engineering\Desktop\back\locks\venv\Lib\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Bornov Engineering\Desktop\back\locks\venv\Lib\site-packages\rest_framework\viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Bornov Engineering\Desktop\back\locks\venv\Lib\site-packages\rest_framework\views.py", line 515, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Bornov Engineering\Desktop\back\locks\venv\Lib\site-packages\rest_framework\views.py", line 475, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\Users\Bornov Engineering\Desktop\back\locks\venv\Lib\site-packages\rest_framework\views.py", line 486, in raise_uncaught_exception
+    raise exc
+  File "C:\Users\Bornov Engineering\Desktop\back\locks\venv\Lib\site-packages\rest_framework\views.py", line 512, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Bornov Engineering\Desktop\back\locks\locksmith\api\views.py", line 3242, in confirm_and_add
+    if user.email and is_valid_email(user.email)
+                      ^^^^^^^^^^^^^^
+NameError: name 'is_valid_email' is not defined. Did you mean: 'self.is_valid_email'?
+[ERROR] 2025-07-11 14:00:43,512 django.channels.server [35;1mHTTP POST /api/suggested-services/49/confirm_and_add/ 500 [1.93, 127.0.0.1:52093][0m
+[INFO] 2025-07-11 14:02:52,607 django.utils.autoreload C:\Users\Bornov Engineering\Desktop\back\locks\locksmith\api\utils.py changed, reloading.
+[INFO] 2025-07-11 14:02:54,328 django.utils.autoreload Watching for file changes with StatReloader
+[INFO] 2025-07-11 14:03:16,060 django.utils.autoreload C:\Users\Bornov Engineering\Desktop\back\locks\locksmith\api\views.py changed, reloading.
+[INFO] 2025-07-11 14:03:17,716 django.utils.autoreload Watching for file changes with StatReloader
+[INFO] 2025-07-11 14:03:22,392 django.utils.autoreload C:\Users\Bornov Engineering\Desktop\back\locks\locksmith\api\views.py changed, reloading.
+[INFO] 2025-07-11 14:03:24,007 django.utils.autoreload Watching for file changes with StatReloader
+[INFO] 2025-07-11 14:03:38,456 django.utils.autoreload C:\Users\Bornov Engineering\Desktop\back\locks\locksmith\api\views.py changed, reloading.
+[INFO] 2025-07-11 14:03:40,232 django.utils.autoreload Watching for file changes with StatReloader
+[INFO] 2025-07-11 14:03:42,767 django.utils.autoreload C:\Users\Bornov Engineering\Desktop\back\locks\locksmith\api\views.py changed, reloading.
+[INFO] 2025-07-11 14:03:44,340 django.utils.autoreload Watching for file changes with StatReloader
+[INFO] 2025-07-11 14:04:59,556 django.utils.autoreload C:\Users\Bornov Engineering\Desktop\back\locks\locksmith\api\views.py changed, reloading.
+[INFO] 2025-07-11 14:05:01,314 django.utils.autoreload Watching for file changes with StatReloader
+[INFO] 2025-07-11 14:05:05,793 django.utils.autoreload C:\Users\Bornov Engineering\Desktop\back\locks\locksmith\api\views.py changed, reloading.
+[INFO] 2025-07-11 14:05:07,338 django.utils.autoreload Watching for file changes with StatReloader
+[WARNING] 2025-07-11 14:07:30,552 django.request Bad Request: /api/suggested-services/49/confirm_and_add/
+[WARNING] 2025-07-11 14:07:30,553 django.channels.server [31;1mHTTP POST /api/suggested-services/49/confirm_and_add/ 400 [0.03, 127.0.0.1:54669][0m
+[INFO] 2025-07-11 14:07:39,884 django.channels.server [mHTTP POST /api/suggested-services/ 201 [2.24, 127.0.0.1:54669][0m
+[WARNING] 2025-07-11 14:07:42,877 django.request Bad Request: /api/suggested-services/49/confirm_and_add/
+[WARNING] 2025-07-11 14:07:42,877 django.channels.server [31;1mHTTP POST /api/suggested-services/49/confirm_and_add/ 400 [0.01, 127.0.0.1:54669][0m
+[ERROR] 2025-07-11 14:07:47,916 django.request Internal Server Error: /api/suggested-services/50/confirm_and_add/
+Traceback (most recent call last):
+  File "C:\Users\Bornov Engineering\Desktop\back\locks\venv\Lib\site-packages\asgiref\sync.py", line 518, in thread_handler
+    raise exc_info[1]
+  File "C:\Users\Bornov Engineering\Desktop\back\locks\venv\Lib\site-packages\django\core\handlers\exception.py", line 42, in inner
+    response = await get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Bornov Engineering\Desktop\back\locks\venv\Lib\site-packages\asgiref\sync.py", line 518, in thread_handler
+    raise exc_info[1]
+  File "C:\Users\Bornov Engineering\Desktop\back\locks\venv\Lib\site-packages\django\core\handlers\base.py", line 253, in _get_response_async
+    response = await wrapped_callback(
+               ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Bornov Engineering\Desktop\back\locks\venv\Lib\site-packages\asgiref\sync.py", line 468, in __call__
+    ret = await asyncio.shield(exec_coro)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python312\Lib\concurrent\futures\thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Bornov Engineering\Desktop\back\locks\venv\Lib\site-packages\asgiref\sync.py", line 522, in thread_handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Bornov Engineering\Desktop\back\locks\venv\Lib\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Bornov Engineering\Desktop\back\locks\venv\Lib\site-packages\rest_framework\viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Bornov Engineering\Desktop\back\locks\venv\Lib\site-packages\rest_framework\views.py", line 515, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Bornov Engineering\Desktop\back\locks\venv\Lib\site-packages\rest_framework\views.py", line 475, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\Users\Bornov Engineering\Desktop\back\locks\venv\Lib\site-packages\rest_framework\views.py", line 486, in raise_uncaught_exception
+    raise exc
+  File "C:\Users\Bornov Engineering\Desktop\back\locks\venv\Lib\site-packages\rest_framework\views.py", line 512, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Bornov Engineering\Desktop\back\locks\locksmith\api\views.py", line 3204, in confirm_and_add
+    if suggestion.suggested_by.email and is_valid_email(suggestion.suggested_by.email):
+                                         ^^^^^^^^^^^^^^
+NameError: name 'is_valid_email' is not defined
+[ERROR] 2025-07-11 14:07:47,924 django.channels.server [35;1mHTTP POST /api/suggested-services/50/confirm_and_add/ 500 [0.07, 127.0.0.1:54669][0m
+[WARNING] 2025-07-11 14:07:52,947 django.request Bad Request: /api/suggested-services/50/confirm_and_add/
+[WARNING] 2025-07-11 14:07:52,948 django.channels.server [31;1mHTTP POST /api/suggested-services/50/confirm_and_add/ 400 [0.01, 127.0.0.1:54669][0m
+[INFO] 2025-07-11 14:08:07,057 django.utils.autoreload C:\Users\Bornov Engineering\Desktop\back\locks\locksmith\api\views.py changed, reloading.
+[INFO] 2025-07-11 14:08:08,798 django.utils.autoreload Watching for file changes with StatReloader
+[WARNING] 2025-07-11 14:08:31,639 django.request Bad Request: /api/suggested-services/50/confirm_and_add/
+[WARNING] 2025-07-11 14:08:31,640 django.channels.server [31;1mHTTP POST /api/suggested-services/50/confirm_and_add/ 400 [0.02, 127.0.0.1:54715][0m
+[INFO] 2025-07-11 14:08:38,683 django.channels.server [mHTTP POST /api/suggested-services/ 201 [1.81, 127.0.0.1:54715][0m
+[INFO] 2025-07-11 14:09:13,487 django.channels.server [mHTTP POST /api/suggested-services/51/confirm_and_add/ 200 [27.62, 127.0.0.1:54715][0m
+[INFO] 2025-07-11 14:12:58,835 django.utils.autoreload C:\Users\Bornov Engineering\Desktop\back\locks\locksmith\api\views.py changed, reloading.
+[INFO] 2025-07-11 14:13:00,613 django.utils.autoreload Watching for file changes with StatReloader
+[INFO] 2025-07-11 14:13:16,890 django.channels.server [mHTTP POST /api/suggested-services/ 201 [2.89, 127.0.0.1:54768][0m
+[INFO] 2025-07-11 14:16:37,413 django.channels.server [mHTTP POST /api/suggested-services/52/confirm_and_add/ 200 [195.78, 127.0.0.1:54768][0m
+[INFO] 2025-07-11 14:49:51,360 django.utils.autoreload C:\Users\Bornov Engineering\Desktop\back\locks\locksmith\api\views.py changed, reloading.
+[INFO] 2025-07-11 14:49:53,225 django.utils.autoreload Watching for file changes with StatReloader
+[INFO] 2025-07-11 14:50:00,232 django.utils.autoreload C:\Users\Bornov Engineering\Desktop\back\locks\locksmith\api\views.py changed, reloading.
+[INFO] 2025-07-11 14:50:01,906 django.utils.autoreload Watching for file changes with StatReloader
+[INFO] 2025-07-11 14:50:10,987 django.channels.server [mHTTP POST /api/suggested-services/ 201 [2.35, 127.0.0.1:52862][0m
+[INFO] 2025-07-11 14:53:54,250 django.channels.server [mHTTP POST /api/suggested-services/53/confirm_and_add/ 200 [196.79, 127.0.0.1:52862][0m
+[WARNING] 2025-07-11 15:00:13,942 django.request Unauthorized: /api/suggested-services/
+[WARNING] 2025-07-11 15:00:13,942 django.channels.server [31;1mHTTP GET /api/suggested-services/ 401 [0.00, 127.0.0.1:56253][0m
+[INFO] 2025-07-11 15:00:25,089 django.channels.server [mHTTP POST /login/ 200 [0.36, 127.0.0.1:56260][0m
+[INFO] 2025-07-11 15:00:43,937 django.channels.server [mHTTP GET /api/suggested-services/ 200 [0.01, 127.0.0.1:56253][0m
+[INFO] 2025-07-11 15:22:42,642 django.channels.server [mHTTP GET /api/content/?section=hero_banner 200 [0.03, 192.168.1.36:59441][0m
+[INFO] 2025-07-11 15:22:42,643 django.channels.server [mHTTP GET /api/content/?section=service_cards 200 [0.03, 192.168.1.36:59442][0m
+[INFO] 2025-07-11 15:22:42,644 django.channels.server [mHTTP GET /api/content/?section=services 200 [0.02, 192.168.1.36:59444][0m
+[INFO] 2025-07-11 15:22:42,644 django.channels.server [mHTTP GET /api/content/?section=locksmith 200 [0.03, 192.168.1.36:59443][0m
+[INFO] 2025-07-11 15:22:42,645 django.channels.server [mHTTP GET /api/content/?section=unlock_your_future 200 [0.02, 192.168.1.36:59445][0m
+[INFO] 2025-07-11 15:22:42,645 django.channels.server [mHTTP GET /api/content/?section=how_we_work 200 [0.02, 192.168.1.36:59446][0m
+[INFO] 2025-07-11 15:22:42,677 django.channels.server [mHTTP GET /api/content/?section=last_section 200 [0.02, 192.168.1.36:59441][0m
+[INFO] 2025-07-11 15:22:42,679 django.channels.server [mHTTP GET /api/content/?section=footer 200 [0.02, 192.168.1.36:59443][0m
+[INFO] 2025-07-11 15:22:42,679 django.channels.server [mHTTP GET /api/content/?section=locksmith 200 [0.02, 192.168.1.36:59442][0m
+[INFO] 2025-07-11 15:22:42,680 django.channels.server [mHTTP GET /api/content/?section=hero_banner 200 [0.03, 192.168.1.36:59444][0m
+[INFO] 2025-07-11 15:22:42,682 django.channels.server [mHTTP GET /api/content/?section=service_cards 200 [0.03, 192.168.1.36:59446][0m
+[INFO] 2025-07-11 15:22:42,682 django.channels.server [mHTTP GET /api/content/?section=services 200 [0.03, 192.168.1.36:59445][0m
+[INFO] 2025-07-11 15:22:42,690 django.channels.server [mHTTP GET /api/content/?section=unlock_your_future 200 [0.01, 192.168.1.36:59441][0m
+[INFO] 2025-07-11 15:22:42,703 django.channels.server [mHTTP GET /api/content/?section=how_we_work 200 [0.01, 192.168.1.36:59443][0m
+[INFO] 2025-07-11 15:22:42,704 django.channels.server [mHTTP GET /api/content/?section=image1 200 [0.01, 192.168.1.36:59444][0m
+[INFO] 2025-07-11 15:22:42,725 django.channels.server [mHTTP GET /api/content/?section=last_section 200 [0.01, 192.168.1.36:59445][0m
+[INFO] 2025-07-11 15:22:42,726 django.channels.server [mHTTP GET /api/content/?section=image2 200 [0.02, 192.168.1.36:59442][0m
+[INFO] 2025-07-11 15:22:42,726 django.channels.server [mHTTP GET /api/content/?section=image3 200 [0.02, 192.168.1.36:59446][0m
+[INFO] 2025-07-11 15:22:42,729 django.channels.server [mHTTP GET /api/content/?section=footer 200 [0.01, 192.168.1.36:59441][0m
+[INFO] 2025-07-11 15:22:42,792 django.channels.server [mHTTP GET /api/content/?section=image1 200 [0.01, 192.168.1.36:59444][0m
+[INFO] 2025-07-11 15:22:42,794 django.channels.server [mHTTP GET /api/content/?section=image3 200 [0.01, 192.168.1.36:59441][0m
+[INFO] 2025-07-11 15:22:42,794 django.channels.server [mHTTP GET /api/content/?section=image2 200 [0.01, 192.168.1.36:59442][0m
+[INFO] 2025-07-11 15:22:42,947 django.channels.server [mHTTP GET /media/content_images/br16.webp 200 [0.11, 192.168.1.36:59447][0m
+[INFO] 2025-07-11 15:22:42,947 django.channels.server [mHTTP GET /media/content_images/br13.webp 200 [0.11, 192.168.1.36:59449][0m
+[INFO] 2025-07-11 15:22:42,951 django.channels.server [mHTTP GET /media/content_images/br19.png 200 [0.11, 192.168.1.36:59448][0m
+[INFO] 2025-07-11 15:22:59,116 django.channels.server [mHTTP OPTIONS /login/step1/ 200 [0.00, 192.168.1.36:59442][0m
+[WARNING] 2025-07-11 15:22:59,785 django.request Unauthorized: /login/step1/
+[WARNING] 2025-07-11 15:22:59,785 django.channels.server [31;1mHTTP POST /login/step1/ 401 [0.66, 192.168.1.36:59442][0m
+[INFO] 2025-07-11 15:23:01,766 django.channels.server [mHTTP GET /api/content/?section=footer 200 [0.01, 192.168.1.36:59442][0m
+[INFO] 2025-07-11 15:23:01,884 django.channels.server [mHTTP GET /api/content/?section=footer 200 [0.01, 192.168.1.36:59442][0m
+[INFO] 2025-07-11 15:23:49,892 django.channels.server [mHTTP OPTIONS /login/ 200 [0.00, 192.168.1.36:59442][0m
+[INFO] 2025-07-11 15:23:50,247 django.channels.server [mHTTP POST /login/ 200 [0.34, 192.168.1.36:59442][0m
+[WARNING] 2025-07-11 15:25:05,124 django.request Forbidden: /login/step1/
+[WARNING] 2025-07-11 15:25:05,124 django.channels.server [31;1mHTTP POST /login/step1/ 403 [0.33, 192.168.1.36:59637][0m
+[INFO] 2025-07-11 15:25:22,569 django.channels.server [mHTTP POST /login/step1/ 200 [4.38, 192.168.1.36:59638][0m
+[INFO] 2025-07-11 15:25:22,575 django.channels.server [mHTTP POST /login/step1/ 200 [7.57, 192.168.1.36:59637][0m
+[INFO] 2025-07-11 15:25:22,585 django.channels.server [mHTTP POST /login/step1/ 200 [2.65, 192.168.1.36:59657][0m
+[INFO] 2025-07-11 15:25:55,476 django.channels.server [mHTTP OPTIONS /login/step2/ 200 [0.00, 192.168.1.36:59657][0m
+[WARNING] 2025-07-11 15:25:55,487 django.request Bad Request: /login/step2/
+[WARNING] 2025-07-11 15:25:55,487 django.channels.server [31;1mHTTP POST /login/step2/ 400 [0.01, 192.168.1.36:59657][0m
+[WARNING] 2025-07-11 15:26:06,366 django.request Bad Request: /login/step2/
+[WARNING] 2025-07-11 15:26:06,367 django.channels.server [31;1mHTTP POST /login/step2/ 400 [0.01, 192.168.1.36:59657][0m
+[INFO] 2025-07-11 15:26:17,130 django.channels.server [mHTTP POST /login/step2/ 200 [0.02, 192.168.1.36:59657][0m
+[INFO] 2025-07-11 15:26:17,271 django.channels.server [mHTTP OPTIONS /api/locksmiths/locksmithform_val/ 200 [0.00, 192.168.1.36:59657][0m
+[INFO] 2025-07-11 15:26:17,272 django.channels.server [mHTTP OPTIONS /api/locksmiths/locksmithform_val/ 200 [0.00, 192.168.1.36:59637][0m
+[INFO] 2025-07-11 15:26:17,287 django.channels.server [mHTTP GET /api/locksmiths/locksmithform_val/ 200 [0.01, 192.168.1.36:59657][0m
+[INFO] 2025-07-11 15:26:17,303 django.channels.server [mHTTP GET /api/locksmiths/locksmithform_val/ 200 [0.01, 192.168.1.36:59657][0m
+[INFO] 2025-07-11 15:26:17,334 django.channels.server [mHTTP OPTIONS /api/Approvalverification/ 200 [0.00, 192.168.1.36:59657][0m
+[INFO] 2025-07-11 15:26:17,334 django.channels.server [mHTTP OPTIONS /api/Approvalverification/ 200 [0.00, 192.168.1.36:59637][0m
+[INFO] 2025-07-11 15:26:17,354 django.channels.server [mHTTP GET /api/Approvalverification/ 200 [0.01, 192.168.1.36:59637][0m
+[INFO] 2025-07-11 15:26:17,365 django.channels.server [mHTTP OPTIONS /api/locksmiths/check_onboarding_status/ 200 [0.00, 192.168.1.36:59657][0m
+[INFO] 2025-07-11 15:26:17,369 django.channels.server [mHTTP GET /api/Approvalverification/ 200 [0.01, 192.168.1.36:59637][0m
+[INFO] 2025-07-11 15:26:18,364 django.channels.server [mHTTP GET /api/locksmiths/check_onboarding_status/ 200 [0.98, 192.168.1.36:59657][0m
+[INFO] 2025-07-11 15:26:19,267 django.channels.server [mHTTP GET /api/locksmiths/check_onboarding_status/ 200 [0.88, 192.168.1.36:59657][0m
+[INFO] 2025-07-11 15:31:46,902 django.channels.server [mHTTP OPTIONS /api/suggested-services/ 200 [0.00, 192.168.1.36:60664][0m
+[INFO] 2025-07-11 15:31:49,122 django.channels.server [mHTTP POST /api/suggested-services/ 201 [2.21, 192.168.1.36:60664][0m
+[INFO] 2025-07-11 15:32:35,065 django.channels.server [mHTTP POST /api/suggested-services/ 201 [1.78, 192.168.1.36:60738][0m
+[INFO] 2025-07-11 15:32:44,643 django.channels.server [mHTTP OPTIONS /api/suggested-services/ 200 [0.00, 192.168.1.36:60738][0m
+[INFO] 2025-07-11 15:32:44,644 django.channels.server [mHTTP OPTIONS /api/suggested-services/ 200 [0.00, 192.168.1.36:60757][0m
+[INFO] 2025-07-11 15:32:44,694 django.channels.server [mHTTP GET /api/suggested-services/ 200 [0.01, 192.168.1.36:60757][0m
+[INFO] 2025-07-11 15:32:44,850 django.channels.server [mHTTP GET /api/suggested-services/ 200 [0.02, 192.168.1.36:60738][0m
+[INFO] 2025-07-11 15:36:27,363 django.channels.server [mHTTP GET /api/suggested-services/ 200 [0.02, 192.168.1.36:61138][0m
+[INFO] 2025-07-11 15:37:34,520 django.channels.server [mHTTP POST /api/suggested-services/ 201 [2.27, 192.168.1.36:61252][0m
+[INFO] 2025-07-11 15:37:43,983 django.channels.server [mHTTP GET /api/suggested-services/ 200 [0.06, 192.168.1.36:61252][0m
+[INFO] 2025-07-11 15:37:44,023 django.channels.server [mHTTP GET /api/suggested-services/ 200 [0.01, 192.168.1.36:61252][0m
+[INFO] 2025-07-11 15:38:53,869 django.channels.server [mHTTP POST /api/suggested-services/ 201 [2.08, 192.168.1.36:61367][0m
+[INFO] 2025-07-11 15:38:59,145 django.channels.server [mHTTP OPTIONS /api/carkeydetails/ 200 [0.00, 192.168.1.36:61367][0m
+[INFO] 2025-07-11 15:38:59,146 django.channels.server [mHTTP OPTIONS /api/carkeydetails/ 200 [0.00, 192.168.1.36:61377][0m
+[INFO] 2025-07-11 15:38:59,166 django.channels.server [mHTTP GET /api/carkeydetails/ 200 [0.01, 192.168.1.36:61377][0m
+[INFO] 2025-07-11 15:38:59,182 django.channels.server [mHTTP GET /api/carkeydetails/ 200 [0.01, 192.168.1.36:61367][0m
+[INFO] 2025-07-11 15:39:00,097 django.channels.server [mHTTP GET /api/suggested-services/ 200 [0.02, 192.168.1.36:61367][0m
+[INFO] 2025-07-11 15:39:00,116 django.channels.server [mHTTP GET /api/suggested-services/ 200 [0.01, 192.168.1.36:61377][0m
+[INFO] 2025-07-11 15:39:19,863 django.channels.server [mHTTP OPTIONS /api/suggested-services/57/confirm_and_add/ 200 [0.00, 192.168.1.36:61377][0m
+[WARNING] 2025-07-11 15:39:27,276 django.request Bad Request: /api/suggested-services/57/confirm_and_add/
+[WARNING] 2025-07-11 15:39:27,277 django.channels.server [31;1mHTTP POST /api/suggested-services/57/confirm_and_add/ 400 [0.01, 192.168.1.36:61367][0m
+[INFO] 2025-07-11 15:40:47,436 django.channels.server [mHTTP POST /api/suggested-services/ 201 [1.80, 192.168.1.36:61495][0m
+[INFO] 2025-07-11 15:40:52,472 django.channels.server [mHTTP GET /api/carkeydetails/ 200 [0.01, 192.168.1.36:61495][0m
+[INFO] 2025-07-11 15:40:52,518 django.channels.server [mHTTP GET /api/carkeydetails/ 200 [0.01, 192.168.1.36:61495][0m
+[INFO] 2025-07-11 15:40:53,438 django.channels.server [mHTTP GET /api/suggested-services/ 200 [0.02, 192.168.1.36:61495][0m
+[INFO] 2025-07-11 15:40:53,455 django.channels.server [mHTTP GET /api/suggested-services/ 200 [0.01, 192.168.1.36:61505][0m
+[INFO] 2025-07-11 15:41:01,623 django.channels.server [mHTTP OPTIONS /api/suggested-services/58/confirm_and_add/ 200 [0.00, 192.168.1.36:61505][0m
+[WARNING] 2025-07-11 15:41:15,780 django.request Bad Request: /api/suggested-services/58/confirm_and_add/
+[WARNING] 2025-07-11 15:41:15,780 django.channels.server [31;1mHTTP POST /api/suggested-services/58/confirm_and_add/ 400 [0.01, 192.168.1.36:61495][0m
+[INFO] 2025-07-11 15:42:00,929 django.channels.server [mHTTP GET /api/suggested-services/ 200 [0.01, 192.168.1.36:61495][0m
+[INFO] 2025-07-11 15:42:00,949 django.channels.server [mHTTP GET /api/suggested-services/ 200 [0.01, 192.168.1.36:61495][0m
+[INFO] 2025-07-11 15:44:22,387 django.channels.server [mHTTP OPTIONS /api/content/?section=footer 200 [0.00, 192.168.1.36:61723][0m
+[INFO] 2025-07-11 15:44:22,389 django.channels.server [mHTTP OPTIONS /api/services/ 200 [0.00, 192.168.1.36:61725][0m
+[INFO] 2025-07-11 15:44:22,389 django.channels.server [mHTTP OPTIONS /api/services/ 200 [0.00, 192.168.1.36:61726][0m
+[INFO] 2025-07-11 15:44:22,390 django.channels.server [mHTTP OPTIONS /api/content/?section=footer 200 [0.00, 192.168.1.36:61727][0m
+[INFO] 2025-07-11 15:44:22,405 django.channels.server [mHTTP GET /api/suggested-services/ 200 [0.02, 127.0.0.1:57038][0m
+[INFO] 2025-07-11 15:44:22,421 django.channels.server [mHTTP GET /api/content/?section=footer 200 [0.02, 192.168.1.36:61726][0m
+[INFO] 2025-07-11 15:44:22,445 django.channels.server [mHTTP GET /api/content/?section=footer 200 [0.02, 192.168.1.36:61726][0m
+[INFO] 2025-07-11 15:44:22,517 django.channels.server [mHTTP GET /api/services/ 200 [0.12, 192.168.1.36:61727][0m
+[INFO] 2025-07-11 15:44:22,659 django.channels.server [mHTTP GET /api/services/ 200 [0.14, 192.168.1.36:61726][0m
+[INFO] 2025-07-11 15:45:06,876 django.channels.server [mHTTP OPTIONS /api/suggested-services/6/reject_suggestion/ 200 [0.00, 192.168.1.36:61726][0m
+[INFO] 2025-07-11 15:45:08,898 django.channels.server [mHTTP POST /api/suggested-services/6/reject_suggestion/ 200 [2.02, 192.168.1.36:61726][0m
+[INFO] 2025-07-11 15:45:08,931 django.channels.server [mHTTP GET /api/suggested-services/ 200 [0.02, 192.168.1.36:61726][0m
+[INFO] 2025-07-11 15:45:10,378 django.utils.autoreload C:\Users\Bornov Engineering\Desktop\back\locks\locksmith\api\views.py changed, reloading.
+[INFO] 2025-07-11 15:45:12,096 django.utils.autoreload Watching for file changes with StatReloader
+[INFO] 2025-07-11 15:45:35,152 django.utils.autoreload Watching for file changes with StatReloader
+[INFO] 2025-07-11 15:45:41,430 django.channels.server [mHTTP POST /api/suggested-services/ 201 [1.83, 192.168.1.36:61883][0m
+[INFO] 2025-07-11 15:45:48,729 django.channels.server [mHTTP GET /api/carkeydetails/ 200 [0.01, 192.168.1.36:61883][0m
+[INFO] 2025-07-11 15:45:48,744 django.channels.server [mHTTP GET /api/carkeydetails/ 200 [0.01, 192.168.1.36:61883][0m
+[INFO] 2025-07-11 15:45:49,529 django.channels.server [mHTTP GET /api/suggested-services/ 200 [0.01, 192.168.1.36:61883][0m
+[INFO] 2025-07-11 15:45:49,547 django.channels.server [mHTTP GET /api/suggested-services/ 200 [0.01, 192.168.1.36:61894][0m
+[INFO] 2025-07-11 15:45:56,865 django.channels.server [mHTTP OPTIONS /api/suggested-services/59/confirm_and_add/ 200 [0.01, 192.168.1.36:61894][0m
+[INFO] 2025-07-11 15:45:58,719 django.channels.server [mHTTP POST /api/suggested-services/59/confirm_and_add/ 200 [1.83, 192.168.1.36:61894][0m
+[INFO] 2025-07-11 15:45:58,738 django.channels.server [mHTTP GET /api/suggested-services/ 200 [0.01, 192.168.1.36:61894][0m
+[INFO] 2025-07-11 15:47:02,630 django.channels.server [mHTTP POST /api/suggested-services/ 201 [2.08, 192.168.1.36:61975][0m
+[INFO] 2025-07-11 15:47:04,464 django.channels.server [mHTTP POST /api/suggested-services/ 201 [1.83, 192.168.1.36:61979][0m
+[INFO] 2025-07-11 15:47:07,344 django.channels.server [mHTTP GET /api/carkeydetails/ 200 [0.02, 192.168.1.36:61979][0m
+[INFO] 2025-07-11 15:47:07,362 django.channels.server [mHTTP GET /api/carkeydetails/ 200 [0.01, 192.168.1.36:61975][0m
+[INFO] 2025-07-11 15:47:08,245 django.channels.server [mHTTP GET /api/suggested-services/ 200 [0.02, 192.168.1.36:61975][0m
+[INFO] 2025-07-11 15:47:08,259 django.channels.server [mHTTP GET /api/suggested-services/ 200 [0.01, 192.168.1.36:61979][0m
+[INFO] 2025-07-11 15:47:16,093 django.channels.server [mHTTP OPTIONS /api/suggested-services/61/confirm_and_add/ 200 [0.00, 192.168.1.36:61979][0m
+[INFO] 2025-07-11 15:47:18,087 django.channels.server [mHTTP POST /api/suggested-services/61/confirm_and_add/ 200 [1.99, 192.168.1.36:61979][0m
+[INFO] 2025-07-11 15:47:18,152 django.channels.server [mHTTP GET /api/suggested-services/ 200 [0.01, 192.168.1.36:61979][0m
+[INFO] 2025-07-11 15:49:32,121 django.utils.autoreload C:\Users\Bornov Engineering\Desktop\back\locks\locksmith\api\views.py changed, reloading.
+[INFO] 2025-07-11 15:49:33,953 django.utils.autoreload Watching for file changes with StatReloader
+[INFO] 2025-07-11 15:49:35,662 django.utils.autoreload C:\Users\Bornov Engineering\Desktop\back\locks\locksmith\api\views.py changed, reloading.
+[INFO] 2025-07-11 15:49:37,183 django.utils.autoreload Watching for file changes with StatReloader
+[INFO] 2025-07-11 15:50:01,955 django.utils.autoreload C:\Users\Bornov Engineering\Desktop\back\locks\locksmith\api\views.py changed, reloading.
+[INFO] 2025-07-11 15:50:03,659 django.utils.autoreload Watching for file changes with StatReloader
