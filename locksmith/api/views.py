@@ -1316,12 +1316,42 @@ class LocksmithViewSet(viewsets.ModelViewSet):
         return Response({"status": "Locksmith is now unavailable."})
     
     
+    
+    
+    def send_discount_email(self, locksmith, is_discounted):
+        subject = "You've received a platform discount!" if is_discounted else "Your discount has been removed"
+        from_email = "contact@lockquick.com.au"  # Update with your verified sender
+        recipient_list = [locksmith.user.email]
+
+        context = {
+            'locksmith_name': locksmith.user.username,
+            'discount_status': "enabled" if is_discounted else "removed",
+            'dashboard_url': "https://lockquick.com.au/lock-dashboard/",  # Update as needed
+        }
+
+        # Render email content
+        html_content = render_to_string("emails/locksmith_discount_status.html", context)
+        text_content = strip_tags(html_content)
+
+        email = EmailMultiAlternatives(subject, text_content, from_email, recipient_list)
+        email.attach_alternative(html_content, "text/html")
+
+        # Optionally attach logo
+        logo_path = os.path.join("static", "images", "logo.png")
+        if os.path.exists(logo_path):
+            with open(logo_path, "rb") as f:
+                email.attach("logo.png", f.read(), "image/png")
+
+        email.send()
+        
+    
+    
     @action(detail=True, methods=['put'], permission_classes=[IsAdminUser])
     def toggle_discount(self, request, pk=None):
-    
         locksmith = self.get_object()
         incoming_value = request.data.get("is_discounted")
 
+        # Update discount status
         if incoming_value is not None:
             locksmith.is_discounted = bool(incoming_value)
         else:
@@ -1329,7 +1359,11 @@ class LocksmithViewSet(viewsets.ModelViewSet):
 
         locksmith.save()
 
+        # Set status label
         status = "enabled" if locksmith.is_discounted else "disabled"
+
+        # ✅ Send email notification
+        self.send_discount_email(locksmith, locksmith.is_discounted)
 
         return Response({
             "status": f"Discount {status} for {locksmith.user.username}",
@@ -3044,7 +3078,7 @@ class CCTVTechnicianPreRegistrationViewSet(viewsets.ModelViewSet):
     
 User = get_user_model()
 logger = logging.getLogger(__name__)
-    
+
 class SuggestedServiceViewSet(viewsets.ModelViewSet):
     queryset = SuggestedService.objects.all()
     serializer_class = SuggestedServiceSerializer
@@ -3064,9 +3098,7 @@ class SuggestedServiceViewSet(viewsets.ModelViewSet):
         if "car_key_details" in self.request.data and self.request.data["car_key_details"]:
             car_keys = self.request.data["car_key_details"]
             try:
-                # ensure it's iterable
                 if isinstance(car_keys, str):
-                    import json
                     car_keys = json.loads(car_keys)
                 car_keys_data = "\n\nCar Key Details:\n"
                 for idx, key in enumerate(car_keys, start=1):
@@ -3081,37 +3113,30 @@ class SuggestedServiceViewSet(viewsets.ModelViewSet):
             except Exception as e:
                 car_keys_data += "\nError reading car key details.\n"
 
-        # Final message
         message_body = (
             f"🔔 Locksmith {self.request.user.username} suggested a new service:\n\n"
             f"{posted_data}"
             f"{car_keys_data}"
         )
 
-        # Send email to admin
         try:
             send_mail(
                 subject="🔔 New Service Suggestion from Locksmith",
                 message=message_body,
                 from_email="contact@lockquick.com.au",
-                recipient_list=["developerbornov@gmail.com"],
+                recipient_list=["contact@lockquick.com.au"],
                 fail_silently=True
             )
         except Exception as e:
-            print("Failed to send service suggestion email:", str(e))
+            logger.error(f"[EMAIL ERROR] Failed to send suggestion email to admin: {e}")
 
-
-
-
-    @action(detail=True, methods=['post'], permission_classes=[IsAdmin])
+    @action(detail=True, methods=['post'], permission_classes=[permissions.IsAdminUser])
     def confirm_and_add(self, request, pk=None):
         suggestion = get_object_or_404(SuggestedService, pk=pk)
 
-        # Prevent duplicate services
         if AdminService.objects.filter(name__iexact=suggestion.name, service_type=suggestion.service_type).exists():
             return Response({"error": "This service already exists."}, status=400)
 
-        # Allow admin to modify fields during approval
         serializer = self.get_serializer(suggestion, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         suggestion = serializer.save(status='approved')
@@ -3119,47 +3144,62 @@ class SuggestedServiceViewSet(viewsets.ModelViewSet):
         name = serializer.validated_data.get('name', suggestion.name)
         service_type = serializer.validated_data.get('service_type', suggestion.service_type)
 
-        # ✅ Create AdminService
         new_service = AdminService.objects.create(
             name=name,
             service_type=service_type
         )
         logger.info(f"[SERVICE CREATE] AdminService created: {new_service}")
 
-        # ✅ Create CarKeyDetails if automotive
-        created_key = None
+        # Create all CarKeyDetails if applicable
+        car_key_objs = []
         if service_type == 'automotive' and suggestion.car_key_details:
-            try:
-                key_data = suggestion.car_key_details[0]  # only one for now
-                created_key = CarKeyDetails.objects.create(
-                    manufacturer=key_data.get('manufacturer'),
-                    model=key_data.get('model'),
-                    year_from=key_data.get('year_from'),
-                    year_to=key_data.get('year_to'),
-                    number_of_buttons=key_data.get('number_of_buttons')
-                )
-                logger.info(f"[CAR KEY CREATE] {created_key}")
-            except Exception as e:
-                logger.error(f"[CAR KEY ERROR] Failed to create key: {e}")
+            for key_data in suggestion.car_key_details:
+                try:
+                    created_key = CarKeyDetails.objects.create(
+                        manufacturer=key_data.get('manufacturer'),
+                        model=key_data.get('model'),
+                        year_from=key_data.get('year_from'),
+                        year_to=key_data.get('year_to'),
+                        number_of_buttons=key_data.get('number_of_buttons')
+                    )
+                    car_key_objs.append(created_key)
+                    logger.info(f"[CAR KEY CREATE] {created_key}")
+                except Exception as e:
+                    logger.error(f"[CAR KEY ERROR] Failed to create key: {e}")
 
-        # ✅ Create LocksmithService
+        # Create locksmith service(s)
         try:
             locksmith = Locksmith.objects.get(user=suggestion.suggested_by)
-            LocksmithServices.objects.create(
-                locksmith=locksmith,
-                admin_service=new_service,
-                custom_price=suggestion.price,
-                total_price=suggestion.price,
-                service_type=service_type,
-                approved=True,
-                additional_key_price=suggestion.additional_key_price,
-                car_key_details=created_key
-            )
-            logger.info(f"[LOCKSMITH SERVICE CREATED] For {locksmith.user.username}")
+
+            if car_key_objs:
+                for key_obj in car_key_objs:
+                    LocksmithServices.objects.create(
+                        locksmith=locksmith,
+                        admin_service=new_service,
+                        custom_price=suggestion.price,
+                        total_price=suggestion.price,
+                        service_type=service_type,
+                        approved=True,
+                        additional_key_price=suggestion.additional_key_price,
+                        car_key_details=key_obj
+                    )
+                    logger.info(f"[LOCKSMITH SERVICE CREATED] With car key: {key_obj}")
+            else:
+                LocksmithServices.objects.create(
+                    locksmith=locksmith,
+                    admin_service=new_service,
+                    custom_price=suggestion.price,
+                    total_price=suggestion.price,
+                    service_type=service_type,
+                    approved=True,
+                    additional_key_price=suggestion.additional_key_price
+                )
+                logger.info(f"[LOCKSMITH SERVICE CREATED] Without car key")
+
         except Locksmith.DoesNotExist:
             logger.warning("[LOCKSMITH MISSING] No locksmith found for suggesting user.")
 
-        # ✅ Notify the suggester
+        # Notify the suggester
         if suggestion.suggested_by.email:
             try:
                 EmailMessage(
@@ -3177,29 +3217,29 @@ class SuggestedServiceViewSet(viewsets.ModelViewSet):
             except Exception as e:
                 logger.error(f"[EMAIL ERROR] Could not notify suggester: {e}")
 
-        # ✅ Notify all other locksmiths one-by-one
-        all_locksmiths = User.objects.filter(role='locksmith').exclude(id=suggestion.suggested_by.id)
-        logger.info(f"[EMAIL DEBUG] Total locksmiths to notify: {all_locksmiths.count()}")
+        # Notify all other locksmiths one-by-one
+        # all_locksmiths = User.objects.filter(role='locksmith').exclude(id=suggestion.suggested_by.id)
+        # logger.info(f"[EMAIL DEBUG] Total locksmiths to notify: {all_locksmiths.count()}")
 
-        for user in all_locksmiths:
-            if user.email:
-                try:
-                    EmailMessage(
-                        subject=f"🆕 New Service Available: {name}",
-                        body=(
-                            f"Hi {user.username},\n\n"
-                            f"A new service '{name}' has just been approved by admin and is now available in your dashboard.\n\n"
-                            f"Log in to your dashboard to start offering this service.\n\n"
-                            f"— Team LockQuick"
-                        ),
-                        from_email="contact@lockquick.com.au",
-                        to=[user.email]
-                    ).send(fail_silently=False)
-                    logger.info(f"[EMAIL SENT] Notification sent to {user.email}")
-                except Exception as e:
-                    logger.error(f"[EMAIL ERROR] Failed to send to {user.email}: {str(e)}")
-            else:
-                logger.warning(f"[EMAIL DEBUG] Skipped {user.username} — no email.")
+        # for user in all_locksmiths:
+        #     if user.email:
+        #         try:
+        #             EmailMessage(
+        #                 subject=f"🆕 New Service Available: {name}",
+        #                 body=(
+        #                     f"Hi {user.username},\n\n"
+        #                     f"A new service '{name}' has just been approved by admin and is now available in your dashboard.\n\n"
+        #                     f"Log in to your dashboard to start offering this service.\n\n"
+        #                     f"— Team LockQuick"
+        #                 ),
+        #                 from_email="contact@lockquick.com.au",
+        #                 to=[user.email]
+        #             ).send(fail_silently=False)
+        #             logger.info(f"[EMAIL SENT] Notification sent to {user.email}")
+        #         except Exception as e:
+        #             logger.error(f"[EMAIL ERROR] Failed to send to {user.email}: {str(e)}")
+        #     else:
+        #         logger.warning(f"[EMAIL DEBUG] Skipped {user.username} — no email.")
 
         return Response({"detail": "Service approved and added successfully."})
 
@@ -3208,4 +3248,21 @@ class SuggestedServiceViewSet(viewsets.ModelViewSet):
         suggestion = get_object_or_404(SuggestedService, pk=pk)
         suggestion.status = 'rejected'
         suggestion.save()
+
+        # Optional rejection email
+        if suggestion.suggested_by.email:
+            try:
+                EmailMessage(
+                    subject="❌ Your Service Suggestion Was Rejected",
+                    body=(
+                        f"Hi {suggestion.suggested_by.username},\n\n"
+                        f"Your suggested service '{suggestion.name}' was reviewed but not approved at this time.\n\n"
+                        f"— Team LockQuick"
+                    ),
+                    from_email="contact@lockquick.com.au",
+                    to=[suggestion.suggested_by.email]
+                ).send(fail_silently=True)
+            except Exception as e:
+                logger.error(f"[EMAIL ERROR] Failed to notify rejection: {e}")
+
         return Response({"detail": "Suggestion rejected."})

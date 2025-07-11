@@ -298,7 +298,7 @@ class LocksmithSerializer(serializers.ModelSerializer):
             'address', 'contact_number', 'latitude', 'longitude',
             'pcc_file', 'license_file', 'photo', 'is_verified',
             'stripe_account_id', 'is_available',
-            'gst_registered'  # ✅ Include this field
+            'gst_registered' , 'is_discounted' # ✅ Include this field
         ]
 
     def validate_service_area(self, value):
@@ -683,6 +683,8 @@ class WebsiteContentSerializer(serializers.ModelSerializer):
     
     
 class SuggestedServiceSerializer(serializers.ModelSerializer):
+    car_key_details = serializers.JSONField(required=False)
+
     class Meta:
         model = SuggestedService
         fields = '__all__'
@@ -690,15 +692,19 @@ class SuggestedServiceSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         if attrs.get('service_type') == 'automotive':
-            if not attrs.get('car_key_details'):
+            car_keys = attrs.get('car_key_details')
+            if not car_keys:
                 raise serializers.ValidationError("Car key details are required for automotive services.")
-            if not isinstance(attrs['car_key_details'], list):
+            if not isinstance(car_keys, list):
                 raise serializers.ValidationError("Car key details must be a list.")
-            for entry in attrs['car_key_details']:
+            
+            for i, entry in enumerate(car_keys):
                 required_fields = ['manufacturer', 'model', 'year_from', 'year_to', 'number_of_buttons']
                 for field in required_fields:
                     if field not in entry:
-                        raise serializers.ValidationError(f"Missing '{field}' in car key details.")
+                        raise serializers.ValidationError(
+                            f"Missing '{field}' in car key details at position {i + 1}."
+                        )
         return attrs
     
     

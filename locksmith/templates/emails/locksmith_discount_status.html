@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<body>
+  <p>Hi {{ locksmith_name }},</p>
+
+  {% if discount_status == 'enabled' %}
+    <p>🎉 Good news! A <strong>10% platform service fee discount</strong> has been applied to your account.</p>
+  {% else %}
+    <p>ℹ️ Your <strong>10% platform service fee discount</strong> has been removed by the admin.</p>
+  {% endif %}
+
+  {% comment %} <p>You can check your updated status from your dashboard:</p> {% endcomment %}
+  <a href="{{ dashboard_url }}">{{ dashboard_url }}</a>
+
+  <br><br>
+  <p>Thanks,</p>
+  <p><strong>LockQuick Team</strong></p>
+</body>
+</html>
