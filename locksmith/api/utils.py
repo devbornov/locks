@@ -100,13 +100,9 @@ def send_password_reset_otp(user):
 from django.core.validators import validate_email
 from django.core.exceptions import ValidationError
 
-# Add any domains you want to block
-BLOCKED_DOMAINS = ['example.com', 'tempmail.com', 'mailinator.com', 'kimdyn.com']
+BLOCKED_DOMAINS = ['example.com', 'tempmail.com']
 
 def is_valid_email(email):
-    """
-    Validate email format and exclude known disposable domains.
-    """
     try:
         validate_email(email)
         domain = email.split('@')[-1].lower()

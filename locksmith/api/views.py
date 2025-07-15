@@ -641,7 +641,7 @@ class AdminLocksmithServiceViewSet(viewsets.ModelViewSet):
         """
         Get all approved locksmith services,
         optionally filtered by service type and sorted by distance.
-        Adds service_area, gst_registered, is_available to the response.
+        Excludes GST, adds 10% only if not discounted, and includes platform fee.
         """
 
         latitude = request.query_params.get('latitude')
@@ -653,42 +653,60 @@ class AdminLocksmithServiceViewSet(viewsets.ModelViewSet):
 
         latitude, longitude = float(latitude), float(longitude)
 
-        # Filter only approved services
+        # Filter approved services
         approved_services = LocksmithServices.objects.filter(approved=True)
 
-        # Apply filtering if service_type is provided
         if service_type:
             approved_services = approved_services.filter(service_type=service_type)
 
-        # Calculate distance for each locksmith and filter accordingly
+        # Load platform commission setting
+        admin_settings = AdminSettings.objects.first()
+        if not admin_settings:
+            return Response({"error": "Admin settings not configured."}, status=500)
+
+        commission_amount = admin_settings.commission_amount or Decimal("0.00")
+        percentage = admin_settings.percentage or Decimal("0.00")
+
         locksmith_services_with_distance = []
 
         for service in approved_services:
-            locksmith = service.locksmith  # Assuming `locksmith` is a ForeignKey in `LocksmithServices`
+            locksmith = service.locksmith
             locksmith_location = (locksmith.latitude, locksmith.longitude)
             customer_location = (latitude, longitude)
             distance_km = geodesic(customer_location, locksmith_location).km
 
-            # Serialize service data
-            service_data = LocksmithServiceSerializer(service).data
+            base_price = service.custom_price or Decimal("0.00")
 
-            # Ensure car_key_details appears only once
+            # Check if locksmith is discounted
+            if locksmith.is_discounted:
+                percentage_amount = Decimal("0.00")
+            else:
+                percentage_amount = (base_price * percentage) / Decimal("100")
+
+            total_price = base_price + commission_amount + percentage_amount
+
+            # Serialize service
+            service_data = LocksmithServiceSerializer(service).data
             car_key_details = service_data.pop("car_key_details", None)
 
-            # Build response item
+            # ✅ Ensure consistent total_price
+            service_data["total_price"] = f"{total_price:.2f}"
+
             locksmith_services_with_distance.append({
                 "locksmith": locksmith.user.username,
                 "latitude": locksmith.latitude,
                 "longitude": locksmith.longitude,
                 "distance_km": round(distance_km, 2),
-                "service_area": locksmith.service_area,             # ✅ added
-                "gst_registered": locksmith.gst_registered,         # ✅ added
-                "is_available": locksmith.is_available,             # ✅ added
+                "service_area": locksmith.service_area,
+                "gst_registered": locksmith.gst_registered,
+                "is_available": locksmith.is_available,
+                "is_discounted": locksmith.is_discounted,
+                "total_price": f"{total_price:.2f}",  # same as below
                 "service": service_data,
                 "car_key_details": car_key_details
             })
 
-        # Sort by nearest distance
+        # Sort by distance
         locksmith_services_with_distance.sort(key=lambda x: x["distance_km"])
 
         return Response(locksmith_services_with_distance)
@@ -3074,6 +3092,7 @@ class CCTVTechnicianPreRegistrationViewSet(viewsets.ModelViewSet):
  
  
     
+from api.email_utils import send_bulk_locksmith_emails
     
     
 User = get_user_model()
@@ -3181,7 +3200,8 @@ class SuggestedServiceViewSet(viewsets.ModelViewSet):
                         service_type=service_type,
                         approved=True,
                         additional_key_price=suggestion.additional_key_price,
-                        car_key_details=key_obj
+                        car_key_details=key_obj,
+                        details=suggestion.details
                     )
                     logger.info(f"[LOCKSMITH SERVICE CREATED] With car key: {key_obj}")
             else:
@@ -3192,7 +3212,8 @@ class SuggestedServiceViewSet(viewsets.ModelViewSet):
                     total_price=suggestion.price,
                     service_type=service_type,
                     approved=True,
-                    additional_key_price=suggestion.additional_key_price
+                    additional_key_price=suggestion.additional_key_price,
+                    details=suggestion.details
                 )
                 logger.info(f"[LOCKSMITH SERVICE CREATED] Without car key")
 
@@ -3218,30 +3239,18 @@ class SuggestedServiceViewSet(viewsets.ModelViewSet):
                 logger.error(f"[EMAIL ERROR] Could not notify suggester: {e}")
 
         # Notify all other locksmiths one-by-one
-        all_locksmiths = User.objects.filter(role='locksmith').exclude(id=suggestion.suggested_by.id)
-        logger.info(f"[EMAIL DEBUG] Total locksmiths to notify: {all_locksmiths.count()}")
-
-        for user in all_locksmiths:
-            if user.email:
-                try:
-                    EmailMessage(
-                        subject=f"🆕 New Service Available: {name}",
-                        body=(
-                            f"Hi {user.username},\n\n"
-                            f"A new service '{name}' has just been approved by admin and is now available in your dashboard.\n\n"
-                            f"Log in to your dashboard to start offering this service.\n\n"
-                            f"— Team LockQuick"
-                        ),
-                        from_email="contact@lockquick.com.au",
-                        to=[user.email]
-                    ).send(fail_silently=False)
-                    logger.info(f"[EMAIL SENT] Notification sent to {user.email}")
-                except Exception as e:
-                    logger.error(f"[EMAIL ERROR] Failed to send to {user.email}: {str(e)}")
-            else:
-                logger.warning(f"[EMAIL DEBUG] Skipped {user.username} — no email.")
-
+        # Notify all other locksmiths in background thread
+        send_bulk_locksmith_emails(
+            subject=f"🆕 New Service Available: {name}",
+            body=(
+                f"A new service '{name}' has just been approved by admin and is now available in your dashboard.\n\n"
+                f"Log in to your dashboard to start offering this service.\n\n"
+                f"— Team LockQuick"
+            ),
+            exclude_user_id=suggestion.suggested_by.id
+        )
         return Response({"detail": "Service approved and added successfully."})
+    
 
     @action(detail=True, methods=['post'], permission_classes=[permissions.IsAdminUser])
     def reject_suggestion(self, request, pk=None):
