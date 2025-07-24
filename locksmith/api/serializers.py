@@ -289,6 +289,7 @@ class CustomerSerializer(serializers.ModelSerializer):
 class LocksmithSerializer(serializers.ModelSerializer):
     user = LocksmithCreateSerializer(read_only=True)
     stripe_account_id = serializers.CharField(read_only=True)
+    date_joined = serializers.DateTimeField(source='user.date_joined', read_only=True)
     gst_registered = serializers.ChoiceField(choices=[('Yes', 'Yes'), ('No', 'No')], required=False)
 
     class Meta:
@@ -298,7 +299,7 @@ class LocksmithSerializer(serializers.ModelSerializer):
             'address', 'contact_number', 'latitude', 'longitude',
             'pcc_file', 'license_file', 'photo', 'is_verified',
             'stripe_account_id', 'is_available',
-            'gst_registered' , 'is_discounted' # ✅ Include this field
+            'gst_registered' , 'is_discounted','date_joined' # ✅ Include this field
         ]
 
     def validate_service_area(self, value):

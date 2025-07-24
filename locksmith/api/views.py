@@ -573,12 +573,74 @@ class AllLocksmiths(viewsets.ReadOnlyModelViewSet):  # Use ReadOnlyModelViewSet 
     permission_classes = [IsAdmin]
     
 
+# class CarKeyDetailsViewSet(viewsets.ModelViewSet):
+#     queryset = CarKeyDetails.objects.all()
+#     serializer_class = CarKeyDetailsSerializer
+#     # permission_classes = [IsAdmin]
+#     filter_backends = [filters.SearchFilter]
+#     search_fields = ['manufacturer']
+    
+    
+import csv
+from django.http import HttpResponse
+from rest_framework import viewsets
+from rest_framework.response import Response
+from django.db.models import Q
+
+from .models import CarKeyDetails
+from .serializers import CarKeyDetailsSerializer
+
+
 class CarKeyDetailsViewSet(viewsets.ModelViewSet):
     queryset = CarKeyDetails.objects.all()
     serializer_class = CarKeyDetailsSerializer
-    # permission_classes = [IsAdmin]
-    filter_backends = [filters.SearchFilter]
-    search_fields = ['manufacturer']
+
+    def get_filtered_queryset(self):
+        search_term = self.request.query_params.get('search', '').strip()
+        qs = self.queryset
+
+        if search_term:
+            # Build Q for text fields partial match
+            q = Q(manufacturer__icontains=search_term) | Q(model__icontains=search_term)
+
+            # If search term is digit, add exact matches for integer fields
+            if search_term.isdigit():
+                num = int(search_term)
+                q |= Q(year_from=num) | Q(year_to=num) | Q(number_of_buttons=num)
+
+            qs = qs.filter(q)
+        return qs
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_filtered_queryset()
+
+        if request.query_params.get('export') == 'csv':
+            return self.export_csv(queryset)
+
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+
+    def export_csv(self, queryset):
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="car_key_details.csv"'
+
+        writer = csv.writer(response)
+        writer.writerow(['ID', 'Manufacturer', 'Model', 'Year From', 'Year To', 'Number of Buttons'])
+
+        for obj in queryset:
+            writer.writerow([
+                obj.id,
+                obj.manufacturer,
+                obj.model,
+                obj.year_from if obj.year_from is not None else '',
+                obj.year_to if obj.year_to is not None else '',
+                obj.number_of_buttons,
+            ])
+
+        return response
+    
+    
+    
     
 from rest_framework.permissions import AllowAny
 from django.db.models import Q
@@ -738,14 +800,77 @@ class AdminLocksmithServiceViewSet(viewsets.ModelViewSet):
 
 
     
+    # @action(detail=False, methods=['get'], permission_classes=[permissions.IsAdminUser])
+    # def all_locksmith_services(self, request):
+    #     """
+    #     Admin can view all services added by locksmiths (both approved and pending).
+    #     """
+    #     services = LocksmithServices.objects.all()
+    #     serializer = LocksmithServiceSerializer(services, many=True)
+    #     return Response(serializer.data)
+    
     @action(detail=False, methods=['get'], permission_classes=[permissions.IsAdminUser])
     def all_locksmith_services(self, request):
         """
-        Admin can view all services added by locksmiths (both approved and pending).
+        Admin can view all locksmith services with unified `search` across username, email,
+        contact_number, and service_type. Supports CSV export with ?export=csv.
         """
+        search = request.query_params.get('search', '')
+        export = request.query_params.get('export', '').lower()
+
         services = LocksmithServices.objects.all()
+
+        if search:
+            services = services.filter(
+                Q(locksmith__user__username__icontains=search) |
+                Q(locksmith__user__email__icontains=search) |
+                Q(locksmith__contact_number__icontains=search) |
+                Q(service_type__icontains=search)
+            )
+
+        if export == 'csv':
+            # Prepare CSV response
+            response = HttpResponse(content_type='text/csv')
+            response['Content-Disposition'] = 'attachment; filename="locksmith_services.csv"'
+
+            writer = csv.writer(response)
+            # Write CSV header
+            writer.writerow([
+                'Service ID',
+                'Locksmith Username',
+                'Locksmith Email',
+                'Locksmith Contact Number',
+                'Admin Service Name',
+                'Custom Price',
+                'Total Price',
+                'Details',
+                'Approved',
+                'Service Type',
+                'Additional Key Price',
+            ])
+
+            # Write data rows
+            for service in services:
+                writer.writerow([
+                    service.id,
+                    service.locksmith.user.username,
+                    service.locksmith.user.email,
+                    service.locksmith.contact_number,
+                    service.admin_service.name,
+                    service.custom_price,
+                    service.total_price,
+                    service.details or '',
+                    service.approved,
+                    service.service_type,
+                    service.additional_key_price,
+                ])
+
+            return response
+
+        # Default JSON response
         serializer = LocksmithServiceSerializer(services, many=True)
         return Response(serializer.data)
+
     
     
     
@@ -1118,8 +1243,27 @@ from django.conf import settings
 from rest_framework.response import Response
 from rest_framework.decorators import api_view
 from .models import Locksmith    
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import filters
+import csv
+from django.http import HttpResponse
     
 stripe.api_key = settings.STRIPE_SECRET_KEY  # Use your Stripe Secret Key
+
+
+
+
+import django_filters
+
+class LocksmithFilter(django_filters.FilterSet):
+    date_joined_after = django_filters.DateFilter(field_name='user__date_joined', lookup_expr='gte')
+    date_joined_before = django_filters.DateFilter(field_name='user__date_joined', lookup_expr='lte')
+
+    class Meta:
+        model = Locksmith
+        fields = ['date_joined_after', 'date_joined_before']
+
+
 
 class LocksmithViewSet(viewsets.ModelViewSet):
     """
@@ -1131,6 +1275,43 @@ class LocksmithViewSet(viewsets.ModelViewSet):
     queryset = Locksmith.objects.all()
     serializer_class = LocksmithSerializer
     permission_classes = [IsAdminUser]  # Only Admin can manage locksmiths
+    
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_class = LocksmithFilter
+    search_fields = ['user__username', 'user__email', 'contact_number']
+    ordering_fields = ['user__date_joined']
+    ordering = ['-user__date_joined']
+    
+    
+    
+    
+    @action(detail=False, methods=['get'], url_path='export-csv',permission_classes=[IsAdminUser])
+    def export_csv(self, request):
+        locksmiths = self.filter_queryset(self.get_queryset())
+
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="locksmiths.csv"'
+
+        writer = csv.writer(response)
+
+        # Header row
+        writer.writerow(['Username', 'Email', 'Contact Number', 'Date Joined', 'Discount', 'Status', 'Address'])
+
+        # Data rows
+        for obj in locksmiths:
+            writer.writerow([
+                obj.user.username,
+                obj.user.email,
+                obj.contact_number,
+                obj.user.date_joined.strftime('%Y-%m-%d %H:%M:%S'),
+                obj.is_discounted,
+                obj.is_approved,
+                obj.address
+            ])
+
+        return response
+        
+    
 
     # ✅ Verify Locksmith (Admin Only)
     @action(detail=True, methods=['put'], permission_classes=[IsAdminUser])
@@ -1220,19 +1401,6 @@ class LocksmithViewSet(viewsets.ModelViewSet):
         locksmith = Locksmith.objects.get(user=request.user)  # Get locksmith linked to the logged-in user
         return Response(LocksmithSerializer(locksmith).data)
     
-    # @action(detail=False, methods=['get'], permission_classes=[IsLocksmith])
-    # def locksmithform_val(self, request):
-    #     try:
-    #         locksmith = Locksmith.objects.get(user=request.user)
-    #     except Locksmith.DoesNotExist:
-    #         return Response({
-    #             "detail": "User not found",
-    #             "code": "user_not_found"
-    #         }, status=status.HTTP_404_NOT_FOUND)
-
-    #     serializer = LocksmithSerializer(locksmith)
-    #     return Response(serializer.data, status=status.HTTP_200_OK)
-
 
     # ✅ Create Stripe Express Account for Locksmith
     @action(detail=False, methods=['post'], permission_classes=[IsLocksmith])
@@ -1387,7 +1555,21 @@ class LocksmithViewSet(viewsets.ModelViewSet):
             "status": f"Discount {status} for {locksmith.user.username}",
             "is_discounted": locksmith.is_discounted
         })
+        
+        
+        
+    def destroy(self, request, *args, **kwargs):
+        locksmith = self.get_object()
+        user = locksmith.user
+        
+        locksmith.delete()
+        user.delete()
 
+        return Response(
+            {"detail": "Locksmith and associated user deleted successfully."},
+            status=status.HTTP_200_OK  # Return 200 instead of 204 to send JSON content
+        )                     
+       
         
       
         
@@ -1450,6 +1632,51 @@ class BookingViewSet(viewsets.ModelViewSet):
 
         # ✅ Explicitly order by ID (ascending)
         return bookings.order_by('id')
+    
+    
+    def list(self, request, *args, **kwargs):
+        export = request.query_params.get('export')
+
+        queryset = self.get_queryset()
+
+        if export == "csv":
+            if request.user.role == "locksmith":
+                response = HttpResponse(content_type='text/csv')
+                response['Content-Disposition'] = 'attachment; filename="locksmith_bookings.csv"'
+
+                writer = csv.writer(response)
+                writer.writerow([
+                    'Booking ID',
+                    'Customer',
+                    'Service Type',
+                    'Scheduled Date',
+                    'Locksmith Status',
+                    'Emergency',
+                    'Total Price',
+                    'Payment Status',
+                    'Booking Status',
+                    'Transfer Status',
+                    'Locksmith Transfer Amount'
+                ])
+
+                for booking in queryset:
+                    writer.writerow([
+                        booking.id,
+                        booking.customer.username,
+                        booking.locksmith_service.service_type if booking.locksmith_service else '',
+                        booking.scheduled_date.strftime('%Y-%m-%d %H:%M'),
+                        booking.locksmith_status,
+                        "Yes" if booking.emergency else "No",
+                        booking.total_price,
+                        booking.payment_status,
+                        booking.status,
+                        booking.transfer_status,
+                        booking.locksmith_transfer_amount
+                    ])
+                return response
+
+        return super().list(request, *args, **kwargs)
+
         
 
     
@@ -3083,8 +3310,27 @@ class CCTVTechnicianPreRegistrationViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         if self.request.method == 'POST':
-            return [AllowAny()]  # Public access for POST
-        return [IsAdmin()]  # Authentication required for GET, PUT, DELETE, PATCH
+            return [AllowAny()]
+        return [IsAdmin()]
+
+    @action(detail=False, methods=['get'], url_path='export-csv', permission_classes=[IsAdmin])
+    def export_csv(self, request):
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="cctv_preregistrations.csv"'
+
+        writer = csv.writer(response)
+        writer.writerow(['Name', 'Email', 'Address', 'Phone', 'Created At'])
+
+        for record in CCTVTechnicianPreRegistration.objects.all():
+            writer.writerow([
+                record.name,
+                record.email,
+                record.address,
+                record.phone,
+                record.created_at.strftime("%Y-%m-%d %H:%M:%S")
+            ])
+
+        return response
  
  
  
@@ -3275,3 +3521,177 @@ class SuggestedServiceViewSet(viewsets.ModelViewSet):
                 logger.error(f"[EMAIL ERROR] Failed to notify rejection: {e}")
 
         return Response({"detail": "Suggestion rejected."})
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import IsAdminUser
+from django.db.models import Sum, Count, F, ExpressionWrapper, DecimalField
+from django.http import HttpResponse
+import csv
+
+from api.models import Booking
+
+
+class AdminDashboardSummary(APIView):
+    permission_classes = [IsAdminUser]
+
+    def get(self, request):
+        export = request.query_params.get('export')
+
+        filters = {
+            'status': 'Completed',
+            'payment_status': 'paid',
+            'transfer_status': 'completed',
+        }
+
+        # Total platform earnings overall
+        total_earnings = Booking.objects.filter(**filters).aggregate(
+            total=Sum('total_price')
+        )['total'] or 0
+
+        # Annotate amount kept by admin (total_price - locksmith_transfer_amount)
+        amount_kept_expression = ExpressionWrapper(
+            F('total_price') - F('locksmith_transfer_amount'),
+            output_field=DecimalField(max_digits=10, decimal_places=2)
+        )
+
+        # Group by locksmith user, annotate counts and sums
+        locksmith_summary = Booking.objects.filter(**filters) \
+            .values(
+                'locksmith_service__locksmith__user__id',
+                'locksmith_service__locksmith__user__username'
+            ) \
+            .annotate(
+                job_count=Count('id'),
+                total_earnings=Sum('total_price'),
+                total_transferred=Sum('locksmith_transfer_amount'),
+                total_admin_amount=Sum(amount_kept_expression)
+            ) \
+            .order_by('-job_count')
+
+        if export == 'csv':
+            response = HttpResponse(content_type='text/csv')
+            response['Content-Disposition'] = 'attachment; filename="dashboard_summary.csv"'
+            writer = csv.writer(response)
+            writer.writerow([
+                'Locksmith User ID',
+                'Username',
+                'Jobs Completed',
+                'Total Earnings',
+                'Amount Transferred to Locksmith',
+                'Amount Kept by Admin'
+            ])
+
+            for item in locksmith_summary:
+                writer.writerow([
+                    item['locksmith_service__locksmith__user__id'],
+                    item['locksmith_service__locksmith__user__username'],
+                    item['job_count'],
+                    item['total_earnings'] or 0,
+                    item['total_transferred'] or 0,
+                    item['total_admin_amount'] or 0,
+                ])
+
+            return response
+
+        return Response({
+            'total_platform_earnings': total_earnings,
+            'locksmiths': locksmith_summary
+        })
+        
+        
+        
+        
+        
+        
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+from datetime import datetime
+from api.models import Booking
+
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+from datetime import datetime
+from api.models import Booking  # adjust import as needed
+
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+from .models import Booking
+from api.models import User
+from datetime import datetime
+from django.utils.timezone import make_aware
+from rest_framework import status
+
+class CalendarBookingAPI(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            user = request.user
+            start_date_str = request.query_params.get('start_date')
+            end_date_str = request.query_params.get('end_date')
+
+            if not start_date_str or not end_date_str:
+                return Response({"error": "start_date and end_date are required"}, status=status.HTTP_400_BAD_REQUEST)
+
+            start_date = make_aware(datetime.strptime(start_date_str, "%Y-%m-%d"))
+            end_date = make_aware(datetime.strptime(end_date_str, "%Y-%m-%d"))
+
+            bookings = Booking.objects.filter(
+                locksmith_service__locksmith__user=user,
+                scheduled_date__range=(start_date, end_date),
+                payment_status__in=["paid", "refunded"]
+            ).order_by('scheduled_date')
+
+            def get_color(booking):
+                # Example logic — customize as needed
+                if booking.locksmith_status == 'APPROVED':
+                    return '#28a745'  # green
+                elif booking.locksmith_status == 'DENIED':
+                    return '#dc3545'  # red
+                elif booking.locksmith_status == 'PENDING':
+                    return '#ffc107'  # yellow
+                return '#007bff'  # default blue
+
+            events = []
+            for booking in bookings:
+                events.append({
+                    "title": f"Booking ID: {booking.id}",
+                    # "start": booking.scheduled_date.isoformat(),
+                    # "end": booking.scheduled_date.isoformat(),
+                    "status": booking.status,
+                    "payment_status": booking.payment_status,
+                    "scheduled_date": booking.scheduled_date.isoformat(),
+                    "locksmith_status": booking.locksmith_status,
+                    "color": get_color(booking)
+                })
+
+            return Response(events, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    
+    
+    
+    
+    
+from django.http import JsonResponse
+from .scheduler import notify_locksmiths
+
+def trigger_notify(request):
+    print("🔔 Manual notify_locksmiths trigger initiated.")
+    notify_locksmiths()
+    return JsonResponse({"status": "Notify job triggered manually"})

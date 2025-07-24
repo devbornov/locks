@@ -55,6 +55,8 @@ INSTALLED_APPS = [
     'allauth.socialaccount.providers.facebook',  # Facebook OAuth
     'dj_rest_auth',
     'dj_rest_auth.registration',
+    'django_filters',
+    'django_apscheduler',
     
 ]
 
@@ -91,6 +93,10 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',  # Require authentication for all endpoints
     ],
+    'DEFAULT_FILTER_BACKENDS': ['django_filters.rest_framework.DjangoFilterBackend',
+        'rest_framework.filters.SearchFilter',
+        'rest_framework.filters.OrderingFilter',],
+    
 }
 
 

@@ -25,7 +25,7 @@ from dj_rest_auth.registration.views import SocialLoginView
 from allauth.socialaccount.providers.google.views import GoogleOAuth2Adapter
 from allauth.socialaccount.providers.facebook.views import FacebookOAuth2Adapter
 from api.views import GoogleLoginAPI
-from api.views import GoogleLoginWithRole ,google_login , stripe_webhook , stripe_session_details , RegisterView, LoginStepOneView, LoginStepTwoView , VerifyOTPView , ResendOTPView , ResetPasswordView , ForgotPasswordRequestView
+from api.views import GoogleLoginWithRole ,google_login , stripe_webhook , stripe_session_details , RegisterView, LoginStepOneView, LoginStepTwoView , VerifyOTPView , ResendOTPView , ResetPasswordView , ForgotPasswordRequestView , AdminDashboardSummary , CalendarBookingAPI , trigger_notify
 
 
 
@@ -75,6 +75,9 @@ urlpatterns = [
     path('resend-otp/', ResendOTPView.as_view(), name='resend_otp'),
     path('forgot-password/', ForgotPasswordRequestView.as_view(), name='forgot-password'),
     path('reset-password/', ResetPasswordView.as_view(), name='reset-password'),
+    path('api/dashboard-summary/', AdminDashboardSummary.as_view(), name='admin-dashboard-summary'),
+    path('api/calendar/bookings/', CalendarBookingAPI.as_view(), name='calendar-bookings'),
+    path('trigger-notify/', trigger_notify),
 
     
 ]
